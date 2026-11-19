@@ -2,9 +2,15 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。当前可核验原始工作簿、复查一张发票，并审计五条交易行剔除规则。研究计划记录后续要实现的训练和评估流程。[研究与代码开发计划](docs/CS5481_Project2_Research_Development_Plan_3.3.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。当前可核验原始工作簿、复查一张发票、调查特殊交易的业务背景，并审计五条拟用于购买样本的剔除规则。研究计划记录后续要实现的训练和评估流程。[研究与代码开发计划](docs/CS5481_Project2_Research_Development_Plan_3.3.md)
 
 ## 运行说明
+
+### D1 · 筛选之前先分析业务情形
+
+先打开特殊交易分析 notebook，用 CPU 读取原始工作簿。输出 Excel 分别列出 C 前缀、数量非正和单价非正的完整明细，保留原始 Excel 行号。这三个视图允许重叠，另有互斥的符号交叉表用来核对总数。1,336 条非 C 负数量明细有单独的表，可以按时间追查发票与商品、查阅原始备注并对照案例时间线。缺失客户编号与不同口径下的客户活动也分别核查。[分析 notebook](docs/technical/transaction_exception_analysis.ipynb) · [可筛选的 Excel 结果](results/transaction_exceptions.xlsx)
+
+运行后，Drive 项目目录下会生成 `results/transaction_exceptions.xlsx`。本地可在仓库根目录执行 `python -m scripts.analyze_exceptions`。此次调查读取全部原始行，包含完全重复的行。下方五步审计衡量的是从正向购买样本剔除记录时影响了多少行。两项操作都保留原始工作簿。
 
 ### D1 · 交易明细清洗审计
 
@@ -52,6 +58,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 
 | 状态 | 位置 | 内容 |
 |---|---|---|
+| 已核验 | [results/transaction_exceptions.xlsx](results/transaction_exceptions.xlsx) | 筛选前的证据表、历史发票回查、备注线索和客户指标敏感性。 |
 | 已核验 | [results/cleaning_audit.csv](results/cleaning_audit.csv) | 五项规则的原始命中数、本步实际移除行数和剩余行数。 |
 | 运行后可查看 | [交易明细 notebook](docs/technical/transaction_records.ipynb) 的输出单元格 | 工作表行列数、发票明细和购物篮汇总。 |
 | 计划生成 | `results/test_metrics.csv` | 在冻结的测试协议下比较四个模型。 |

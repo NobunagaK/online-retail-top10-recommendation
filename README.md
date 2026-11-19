@@ -2,9 +2,15 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. The project currently verifies the raw workbook, inspects an invoice, and audits five row-removal rules. The research plan describes the training and evaluation workflow under development. [Research and development plan](docs/CS5481_Project2_Research_Development_Plan_3.3.en.md)
+This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. The project currently verifies the raw workbook, inspects an invoice, investigates exceptional transactions, and audits five proposed row-removal rules. The research plan describes the training and evaluation workflow under development. [Research and development plan](docs/CS5481_Project2_Research_Development_Plan_3.3.en.md)
 
 ## Run instructions
+
+### D1 · Investigate business context before filtering
+
+Open the exception analysis notebook first. Run it on CPU against the original workbook. Its Excel output contains overlapping row-level views for C invoices, nonpositive quantities, and nonpositive prices, a disjoint sign table for reconciliation, and the original Excel row numbers. The 1,336 negative-quantity lines outside C invoices have their own sheet. Strictly earlier invoice/SKU matches, literal notes, and case timelines let the reader inspect the evidence for each interpretation. Missing IDs and customer activity measures are examined separately. [Analysis notebook](docs/technical/transaction_exception_analysis.ipynb) · [Filterable results workbook](results/transaction_exceptions.xlsx)
+
+The notebook writes `results/transaction_exceptions.xlsx` inside the Drive project. Locally, run `python -m scripts.analyze_exceptions` from the repository root. The analysis reads all original rows including duplicates. The five-rule audit below counts how many rows would be excluded from a positive-purchase sample. Both procedures leave the original workbook intact.
 
 ### D1 · Audit transaction rows
 
@@ -52,6 +58,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 
 | Status | Location | Contents |
 |---|---|---|
+| Verified | [results/transaction_exceptions.xlsx](results/transaction_exceptions.xlsx) | Evidence sheets, invoice traces, description clues, and customer-level sensitivity before filtering. |
 | Verified | [results/cleaning_audit.csv](results/cleaning_audit.csv) | Raw matches, net removals, and remaining rows for all five D1 audit rules. |
 | Available on execution | Output cells in [the transaction notebook](docs/technical/transaction_records.ipynb) | Workbook dimensions, invoice lines, and basket totals. |
 | Planned | `results/test_metrics.csv` | Four-model comparison on the frozen test protocol. |
