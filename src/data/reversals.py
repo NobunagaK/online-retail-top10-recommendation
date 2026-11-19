@@ -340,5 +340,7 @@ def compute_reversal_tables(raw: pd.DataFrame) -> dict[str, pd.DataFrame]:
     # published diagnostics without modifying source prices or the signed ledgers.
     for name in ["source_audit", "reconciliation", "region_summary", "benchmark"]:
         money = [column for column in tables[name] if column.endswith("_gbp")]
-        tables[name][money] = tables[name][money].round(6)
+        rounded = tables[name][money].round(6)
+        # A rounded zero has a single CSV representation across NumPy versions.
+        tables[name][money] = rounded.mask(rounded.eq(0), 0.0)
     return tables
