@@ -14,15 +14,20 @@ RAW_COLUMNS = [
 ]
 
 
-def audit_transactions(frame: pd.DataFrame) -> pd.DataFrame:
-    """Count each flag on raw rows and assign each removed row to its first rule."""
-    flags = {
+def purchase_filter_flags(frame: pd.DataFrame) -> dict[str, pd.Series]:
+    """Evaluate the five proposed purchase-sample rules in their audit order."""
+    return {
         "exact_duplicate": frame.duplicated(subset=RAW_COLUMNS, keep="first"),
         "missing_customer_id": frame["CustomerID"].isna(),
         "cancelled_invoice": frame["InvoiceNo"].astype("string").str.startswith("C", na=False),
         "nonpositive_quantity": frame["Quantity"].le(0).fillna(False),
         "nonpositive_unit_price": frame["UnitPrice"].le(0).fillna(False),
     }
+
+
+def audit_transactions(frame: pd.DataFrame) -> pd.DataFrame:
+    """Count each flag on raw rows and assign each removed row to its first rule."""
+    flags = purchase_filter_flags(frame)
     remaining = pd.Series(True, index=frame.index)
     records = []
     for step, (rule, flagged) in enumerate(flags.items(), start=1):
