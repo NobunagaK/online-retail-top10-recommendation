@@ -1,5 +1,7 @@
 # CS5481 项目二｜在线零售商品推荐研究与代码开发计划
 
+[English](CS5481_Project2_Research_Development_Plan_3.3.en.md) · [简体中文](CS5481_Project2_Research_Development_Plan_3.3.md)
+
 **Project 2 · Online Retail Recommendation · v3.3 · 2026-11-19**
 
 给定客户在截止日前的购买历史，为指定的后续月份推荐 10 种商品。正式实验并列比较 **MF、LightGBM、LRURec 和 Mamba4Rec**。四个模型各自训练、独立给同一批客户和候选商品打分，都参加验证选模和最终测试。
