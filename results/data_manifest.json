@@ -1,0 +1,69 @@
+{
+  "source": {
+    "dataset_doi": "10.24432/C5BW33",
+    "workbook_sha256": "43465a06f2ccf7c8b5bd2892bc7defb52f97487934fe93b16ae4c3936424676d",
+    "sheet": "Online Retail",
+    "raw_fields": [
+      "InvoiceNo",
+      "StockCode",
+      "Description",
+      "Quantity",
+      "InvoiceDate",
+      "UnitPrice",
+      "CustomerID",
+      "Country"
+    ],
+    "excel_first_data_row": 2,
+    "rows": 541909,
+    "first_timestamp": "2010-12-01T08:26:00",
+    "last_timestamp": "2011-12-09T12:50:00"
+  },
+  "merchandise_evidence_period": {
+    "start": "2010-12-01",
+    "end_exclusive": "2011-10-01"
+  },
+  "counts": {
+    "after_five_rules": 392692,
+    "removed_total": 150849,
+    "paid_merchandise_lines": 391060,
+    "basket_item_events": 386236,
+    "baskets": 18402,
+    "customers": 4334,
+    "stock_codes": 3658,
+    "paid_units": 5141694,
+    "recorded_amount_gbp": 8735922.643
+  },
+  "event_key": [
+    "CustomerID",
+    "InvoiceNo",
+    "StockCode"
+  ],
+  "basket_time": "Latest retained line timestamp on the customer invoice.",
+  "scope": "Whole-workbook cleaning. Slice by basket_time before constructing model histories or labels.",
+  "outputs": {
+    "results/cleaning_audit.csv": {
+      "rows": 5,
+      "sha256": "60b3431d9ece555ec2fd84bf3653d209760edd6d111565f9c0cadae5801a298d"
+    },
+    "results/cleaning_steps.csv": {
+      "rows": 34,
+      "sha256": "b5a58d42bb34f48cde3cbad3c958d006b0d361b5e9f814667771bb1315bd4ce3"
+    },
+    "results/merchandise_rules.csv": {
+      "rows": 38,
+      "sha256": "5943b0e2502b82a4aed19e06e18b38f0c0ea90c406e2ca8a997eecde03ad0a74"
+    },
+    "data/processed/row_decisions.csv.gz": {
+      "rows": 541909,
+      "sha256": "ecff78c04465d6a78648f5fca538e5a8433fb6bc8df6a9c3429f85472f7a632b"
+    },
+    "data/processed/purchase_lines.csv.gz": {
+      "rows": 391060,
+      "sha256": "e766ba2f68d195d50525498237f6a29aa5bf13652e07d296d9ec89d9e71d71b9"
+    },
+    "data/processed/basket_events.csv.gz": {
+      "rows": 386236,
+      "sha256": "606eb1f7d72dc080bb4f6d5f29fc7b1192aa9b270990298cc59a9eb3a559f525"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-"""Audit the first five purchase-line filters for UCI Online Retail."""
+"""Read the identified UCI workbook and reproduce the original five-rule audit."""
 
 import hashlib
 from pathlib import Path
@@ -12,6 +12,20 @@ RAW_COLUMNS = [
     "InvoiceNo", "StockCode", "Description", "Quantity",
     "InvoiceDate", "UnitPrice", "CustomerID", "Country",
 ]
+
+
+def read_workbook(path: Path) -> pd.DataFrame:
+    with Path(path).open("rb") as stream:
+        if hashlib.file_digest(stream, "sha256").hexdigest() != WORKBOOK_SHA256:
+            raise ValueError("Workbook differs from the source identified in the research plan.")
+        stream.seek(0)
+        raw = pd.read_excel(stream, sheet_name="Online Retail", engine="openpyxl",
+                            dtype={key: "string" for key in ("InvoiceNo", "StockCode", "CustomerID")},
+                            keep_default_na=False, na_values=[""])
+    if raw.columns.tolist() != RAW_COLUMNS:
+        raise ValueError("Unexpected source schema.")
+    raw.insert(0, "ExcelRow", range(2, len(raw) + 2))
+    return raw
 
 
 def purchase_filter_flags(frame: pd.DataFrame) -> dict[str, pd.Series]:
@@ -50,17 +64,7 @@ def run_audit(workbook: Path, output: Path) -> pd.DataFrame:
     workbook, output = Path(workbook), Path(output)
     if output.suffix.lower() != ".csv":
         raise ValueError("Choose a .csv file for the audit output.")
-    with workbook.open("rb") as source:
-        digest = hashlib.file_digest(source, "sha256").hexdigest()
-        if digest != WORKBOOK_SHA256:
-            raise ValueError(f"Workbook SHA-256 mismatch: expected {WORKBOOK_SHA256}, got {digest}")
-        source.seek(0)
-        frame = pd.read_excel(
-            source, sheet_name="Online Retail", engine="openpyxl",
-            keep_default_na=False, na_values=[""],
-        )
-
-    audit = audit_transactions(frame)
+    audit = audit_transactions(read_workbook(workbook))
     output.parent.mkdir(parents=True, exist_ok=True)
     temp = NamedTemporaryFile(
         dir=output.parent, mode="w", newline="", encoding="utf-8", delete=False,

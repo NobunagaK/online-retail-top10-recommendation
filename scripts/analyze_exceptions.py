@@ -1,32 +1,17 @@
 """Explore signed transactions on the full UCI workbook before purchase filters."""
 
 import argparse
-import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pandas as pd
 from openpyxl.utils import get_column_letter
 
-from src.data.clean import RAW_COLUMNS, WORKBOOK_SHA256
+from src.data.clean import read_workbook
 from src.data.exception_impact import impact_tables
 from src.data.exception_missing import missingness_tables
 from src.data.exception_notes import description_evidence, mentioned_invoice_trace, sku_name_evidence
 from src.data.purchase_evidence import purchase_evidence
-
-
-def read_workbook(path: Path) -> pd.DataFrame:
-    with Path(path).open("rb") as stream:
-        if hashlib.file_digest(stream, "sha256").hexdigest() != WORKBOOK_SHA256:
-            raise ValueError("Workbook differs from the source identified in the research plan.")
-        stream.seek(0)
-        raw = pd.read_excel(stream, sheet_name="Online Retail", engine="openpyxl",
-                            dtype={key: "string" for key in ("InvoiceNo", "StockCode", "CustomerID")},
-                            keep_default_na=False, na_values=[""])
-    if raw.columns.tolist() != RAW_COLUMNS:
-        raise ValueError("Unexpected source schema.")
-    raw.insert(0, "ExcelRow", range(2, len(raw) + 2))
-    return raw
 
 
 def _sign(values: pd.Series) -> pd.Series:

@@ -1,0 +1,35 @@
+step,rule,action,raw_flagged,rows_before,rows_removed,rows_after,evidence_sheets,reason_en,reason_zh
+1,exact_duplicate,exclude,5268,541909,5268,536641,filter_attribution,Keep the first occurrence of an identical eight-field record.,按八个原始字段识别完全相同的明细，保留首次出现的一行。
+2,missing_customer_id,exclude,135080,536641,135037,401604,"missingness, customer_id_invoices, filter_attribution",An anonymous line cannot be assigned to a customer's history. The source audit retains these lines.,匿名交易无法归入具体客户的历史，原始审计仍涵盖这些行。
+3,missing_invoice_no,exclude,0,401604,0,401604,missingness,An invoice identifier is required to construct a basket.,缺少发票编号，无法构造购物篮。
+4,missing_stock_code,exclude,0,401604,0,401604,missingness,An item identifier is required to assign a product.,缺少商品编码，无法确定商品。
+5,missing_invoice_date,exclude,0,401604,0,401604,missingness,The timestamp determines the basket time and eligible history.,缺少时间，无法确定购物篮发生时间与可用历史。
+6,missing_quantity,exclude,0,401604,0,401604,missingness,The purchased quantity is unknown.,缺少数量，无法核实购买件数。
+7,missing_unit_price,exclude,0,401604,0,401604,missingness,The recorded unit price is unknown.,缺少单价，无法核实计价金额。
+8,cancelled_invoice,exclude,9288,401604,8872,392732,"C_invoices, history_summary, case_examples",A C-prefixed document contributes no new purchase. Earlier positive lines remain in history.,C 前缀发票不产生新的购买事件，较早的正向购买仍保留在历史中。
+9,negative_quantity,exclude,10624,392732,0,392732,"Q_nonpositive, nonC_negative, note_summary",Negative units do not add purchased items. Notes can describe damage or adjustments without identifying a buyer.,负数量不形成新增购买。备注可能记录损坏或调整，但不足以确认买家。
+10,zero_quantity,exclude,0,392732,0,392732,"Q_nonpositive, filter_attribution",Zero units add no purchase event.,零数量不产生购买事件。
+11,negative_unit_price,exclude,2,392732,0,392732,"P_nonpositive, case_examples, note_summary",A negative unit price is outside the paid-item definition. Both observed examples record bad-debt adjustments.,负单价不符合计价商品定义，原表两条实例的备注均为坏账调整。
+12,zero_price_manual,exclude,6,392732,6,392726,"P_nonpositive, note_summary",An exact manual-entry code (M or m) carries a recorded zero unit price.,手工记录编码 M 或 m 的记录单价为零。
+13,zero_price_same_item,exclude,23,392726,5,392721,"P_nonpositive, case_examples, history_summary","A priced line shares the invoice, customer key and SKU. The zero-price row adds no paid units.",同票另有计价行匹配该客户键和商品编码，零价行不增加计价购买件数。
+14,zero_price_other_item,exclude,372,392721,23,392698,"P_nonpositive, case_examples, history_summary","This invoice has a priced line, but none matches the customer key and SKU. A priced line can also represent a fee.",同票有计价行，但没有计价行同时匹配本行的客户键和商品编码。计价行也可能是费用。
+15,zero_price_no_priced_companion,exclude,2114,392698,6,392692,"P_nonpositive, case_examples, history_summary",No non-C line with positive quantity and price was found under this exact invoice number.,该发票编号下未查到非 C 且数量和单价均为正的计价行。
+16,non_merchandise_23444,exclude,81,392692,79,392613,"merchandise_rules.csv, C_invoices, P_nonpositive",Postage or carriage pays for delivery.,邮费或运费支付的是配送服务。
+17,non_merchandise_23574,exclude,17,392613,14,392599,"merchandise_rules.csv, C_invoices, P_nonpositive",The line bills a packing fee.,该行收取包装费。
+18,non_merchandise_AMAZONFEE,exclude,34,392599,0,392599,"merchandise_rules.csv, C_invoices, note_summary","The description identifies a payment, platform or commission fee.",描述表明该行记录银行、平台费用或佣金。
+19,non_merchandise_B,exclude,3,392599,0,392599,"merchandise_rules.csv, P_nonpositive, case_examples, note_summary",The line records a bad-debt adjustment.,该行属于坏账调整。
+20,non_merchandise_BANK CHARGES,exclude,37,392599,12,392587,"merchandise_rules.csv, C_invoices, note_summary","The description identifies a payment, platform or commission fee.",描述表明该行记录银行、平台费用或佣金。
+21,non_merchandise_C2,exclude,144,392587,133,392454,"merchandise_rules.csv, C_invoices, P_nonpositive, note_summary",Postage or carriage pays for delivery.,邮费或运费支付的是配送服务。
+22,non_merchandise_CRUK,exclude,16,392454,0,392454,"merchandise_rules.csv, C_invoices, note_summary","The description identifies a payment, platform or commission fee.",描述表明该行记录银行、平台费用或佣金。
+23,non_merchandise_D,exclude,77,392454,0,392454,"merchandise_rules.csv, C_invoices, case_examples, note_summary",The line records a discount on a transaction.,该行记录交易折扣。
+24,non_merchandise_DOT,exclude,710,392454,16,392438,"merchandise_rules.csv, C_invoices, P_nonpositive, note_summary",Postage or carriage pays for delivery.,邮费或运费支付的是配送服务。
+25,non_merchandise_M,exclude,571,392438,279,392159,"merchandise_rules.csv, C_invoices, P_nonpositive, note_summary",The source description only says Manual. It identifies no particular product to rank.,原文描述只有 Manual，无法据此识别可供推荐的具体商品。
+26,non_merchandise_m,exclude,1,392159,0,392159,merchandise_rules.csv,The source description only says Manual. It identifies no particular product to rank.,原文描述只有 Manual，无法据此识别可供推荐的具体商品。
+27,non_merchandise_POST,exclude,1256,392159,1099,391060,"merchandise_rules.csv, C_invoices, P_nonpositive, note_summary",Postage or carriage pays for delivery.,邮费或运费支付的是配送服务。
+28,non_merchandise_S,exclude,63,391060,0,391060,"merchandise_rules.csv, C_invoices, note_summary",The generic sample code does not identify a particular item to recommend.,样品通用编码未指明可推荐的具体商品。
+29,non_merchandise_gift_0001_10,exclude,9,391060,0,391060,"merchandise_rules.csv, P_nonpositive",The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
+30,non_merchandise_gift_0001_20,exclude,10,391060,0,391060,"merchandise_rules.csv, P_nonpositive",The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
+31,non_merchandise_gift_0001_30,exclude,8,391060,0,391060,"merchandise_rules.csv, P_nonpositive",The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
+32,non_merchandise_gift_0001_40,exclude,3,391060,0,391060,merchandise_rules.csv,The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
+33,non_merchandise_gift_0001_50,exclude,4,391060,0,391060,merchandise_rules.csv,The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
+34,retained,retain,391060,391060,0,391060,"filter_attribution, sku_names, merchandise_rules.csv","Keep identified, dated, positive-quantity, positive-price merchandise lines. Preserve exact SKU and invoice IDs, including suffixes.",保留客户、时间、发票与商品明确且数量和单价均为正的商品明细，按原值保留发票及商品编码（含后缀）。
