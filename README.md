@@ -33,6 +33,21 @@ The full-workbook run classified 8,665 merchandise credit lines as 1,473 cancell
 
 **Testing threshold sensitivity.** Replaying the UK boundary at 120 hours instead of 72 reclassifies 608 credits. The audit compares sale allocations, all basket-event columns and month-end positive pairs before the candidate filter in eight training months and October validation. The four primary models use the same threshold-independent event fields. Cancellation/return status, lag-based return counts and rates are audit fields. If LightGBM later uses them in a validation ablation, its features and scores can depend on the thresholds. [Sensitivity results](results/net_retention_threshold_check.csv) · [Reproduction command](scripts/check_net_retention.py)
 
+### D2 · Monthly queries and shared evaluation
+
+After D1, open the monthly query notebook on a CPU and run its cells in order. It traces one customer's history, catalog, target-month positives and shared evaluation inputs. To rebuild the same tables from the D1 signed customer ledger and credit allocations, run the following from the repository root. The build uses February–September training targets and October validation. The builder writes the fixed October AUC sample. November labels, the November AUC sample and test scores are reserved for the frozen test run. [Monthly queries and evaluation notebook](notebooks/monthly_queries_and_evaluation.ipynb) · [Data protocol](docs/data_protocol.md) · [Query builder](scripts/build_queries.py)
+
+```bash
+python scripts/build_queries.py --project-root .
+python -m scripts.audit_label_delay
+```
+
+The query builder writes to `data/processed/d2/`. Look in `manifest.json` for versions and SHA-256 digests, `coverage.csv` for the population denominators, and the separate Parquet files for queries, histories, labels, catalogs, pairs and historical features. Use `--output-dir` to write a second build for comparison. The saved build contains 5,430 training queries. Of the 1,357 customers active in October, 758 qualify for primary validation over the shared catalog of 3,495 items. The notebook’s worked scores illustrate the evaluator. [D2 manifest](data/processed/d2/manifest.json) · [Monthly coverage](data/processed/d2/coverage.csv)
+
+**Why October and November differ.** Both use histories strictly before 1 October 2011. October is the next month (T+1), November is the second (T+2). Recency is elapsed days from the last retained purchase to `history_end`, including fractional days. The 7-, 30- and 90-day windows end at that same cutoff. A customer present in both periods therefore has the same history, catalog and historical features. A future difference in scores could reflect the longer horizon, the Christmas run-up or changes in the buyers and products observed. This single pair of months cannot isolate their effects. The workbook ends on 9 December at 12:50, leaving a shorter window for later credits against November purchases. December is outside the main evaluation.
+
+**How to read delayed credits.** Before customer eligibility and catalog filtering, 758 of 246,998 distinct month–customer–SKU positives in February–October reach zero when later observed credits are included. The project owner supplied a separate February–November workbook count of 788/301,922 (0.26%), including 30 for November. These fractions describe changes in recorded labels. Computing a change in Recall@10 or NDCG@10 would require eligible per-query labels and model rankings. Model selection uses October validation alone. [Pre-test audit table](results/d2_audit/label_delay_pretest.csv) · [Label-delay audit](scripts/audit_label_delay.py) · [Definitions and denominators](docs/data_protocol.md)
+
 ### Technical reference · Inspect an invoice
 
 1. Open the transaction notebook in Google Colab on a CPU runtime. In **File → Open notebook**, use the GitHub tab and the notebook's GitHub URL, or upload the downloaded `.ipynb` file. [Transaction records and baskets](docs/technical/transaction_records.ipynb)
@@ -50,15 +65,19 @@ python docs/technical/transaction_records.py
 
 ## Software requirements
 
-| Component | Environment |
-|---|---|
-| Workbook analysis | Google Colab with a CPU, or local Jupyter with Python. The analysis was verified locally with Python 3.12.14, pandas 2.2.3, and openpyxl 3.1.5. |
-| Training-period EDA | Python with pandas and Matplotlib. Use a CPU runtime with Jupyter or Colab to run the notebook. |
-| Model experiments (planned) | Colab CPU for MF and LightGBM, Colab with an NVIDIA GPU for LRURec and Mamba4Rec. Tested model-specific dependency versions will accompany the training code. |
+From the repository root, install the CPU runtime or the development environment, which also includes the CPU runtime. The direct dependency versions are pinned for Python 3.12. The local reference interpreter is Python 3.12.14. [CPU requirements](requirements.txt) · [Tests and notebook requirements](requirements-dev.txt)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+For local notebook execution, Python export or tests, run `python -m pip install -r requirements-dev.txt` in the same environment. In a local notebook frontend, select that environment’s Python kernel. To run the test suite, use `python -m pytest -q`. The D1/D2 commands use NumPy, pandas, openpyxl, Matplotlib and PyArrow on CPU. The model pilots will record their own tested dependencies and GPU runtimes.
 
 ## Random seeds
 
-The workbook check, invoice example, cleaning audit, and training-period EDA use deterministic calculations. Planned experiments use training seed `42` for hyperparameter search, seeds `42`, `2026`, and `3407` to check selected configurations, and a separate seed `5481` to sample negatives for ROC AUC.
+The workbook check, invoice example, cleaning audit, and training-period EDA use deterministic calculations. D2 uses seed `42` for shared training negatives and `5481` for the fixed validation AUC sample. Planned model experiments use training seed `42` for hyperparameter search, seeds `42`, `2026`, and `3407` to check selected configurations, and a separate seed `5481` to sample negatives for ROC AUC.
 
 ## Dataset citation
 
@@ -78,11 +97,14 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | Verified | [Reconciliation](results/reversal_benchmark.csv) · [Line-level credit matches](results/credit_allocations.csv.gz) · [Matching differences](results/reversal_match_differences.csv) | Credit allocations, classifications and controls traceable to individual Excel lines. |
 | Verified locally | [Training EDA results](results/training_eda/) | Training-window totals and denominators, monthly volume, distributions and product popularity in JSON, CSV and PNG formats. |
 | Available on execution | Output cells in [the transaction notebook](docs/technical/transaction_records.ipynb) | Workbook dimensions, invoice lines, and basket totals. |
+| Verified locally | [D2 manifest](data/processed/d2/manifest.json) · [Monthly coverage](data/processed/d2/coverage.csv) · [Parquet tables](data/processed/d2/) | Cutoff-specific inputs, cohort counts, and deterministic training and validation samples. |
 | Planned | `results/test_metrics.csv` | Four-model comparison on the frozen test protocol. |
 | Planned | `results/cohort_coverage.csv`, `results/segment_metrics.csv`, `results/case_study.csv` | Population coverage, metrics by group, and individual recommendations. |
 | Planned | `experiments/exp_XXX/diagnostics_panel.png` | Diagnostic figure for an experiment. |
 
 ## Technical documentation and Canvas submission
+
+The technical report draft collects measured D1 and D2 findings for the Canvas submission. The data protocol defines how to reproduce each query and metric. The research plan describes the model experiments and their acceptance criteria. [Technical report draft](docs/technical_report.md) · [Data protocol](docs/data_protocol.md) · [Research plan](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
 
 Project-authored documents have English and Chinese editions. Each Markdown cell in a technical notebook presents the full English section followed by the full Chinese section. Both versions share the same code. [Technical reference](docs/technical/transaction_records.ipynb)
 

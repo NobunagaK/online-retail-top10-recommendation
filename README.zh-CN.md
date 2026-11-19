@@ -33,6 +33,21 @@ python -m scripts.check_net_retention
 
 **阈值敏感性核验。** 将英国的 72 小时改为 120 小时，有 608 条贷项改变分类。核验逐项比较冲销分配、全部篮内事件字段，以及八个训练月份和十月验证月在候选筛选前的月末正例。四个主模型都只使用与地区阈值无关的购买事件字段。依赖地区时限的取消／退货标签、退货计数和退货率作审计用。如果以后将它们加入 LightGBM 的验证集特征对照实验，该实验的特征和得分可能随时限改变。[敏感性对照结果](results/net_retention_threshold_check.csv) · [复现入口](scripts/check_net_retention.py)
 
+### D2 · 月度查询与统一评价
+
+完成 D1 后，在 CPU 运行时顺序执行月度查询 notebook，跟随一位客户核对历史、候选商品、目标月正例及共用的评价输入。若要从 D1 已知客户账与冲销分配表重新生成同一组表，在仓库根目录运行下方命令。本次构建覆盖二月至九月的训练目标和十月验证。本次保存十月验证的 AUC 抽样。十一月标签、十一月 AUC 抽样及测试得分留给选模冻结后的测试。[月度查询与评价 notebook](notebooks/monthly_queries_and_evaluation.ipynb) · [数据协议](docs/data_protocol.zh-CN.md) · [查询构建脚本](scripts/build_queries.py)
+
+```bash
+python scripts/build_queries.py --project-root .
+python -m scripts.audit_label_delay
+```
+
+查询构建脚本默认输出到 `data/processed/d2/`。`manifest.json` 记录版本及输入输出的 SHA-256 校验值，`coverage.csv` 给出各组客户的分母，查询、历史、标签、候选目录、正负样本及历史特征分别写入 Parquet 文件。可用 `--output-dir` 写到另一目录以比较两次构建。已生成 5,430 条训练查询；十月有 1,357 位活跃客户，其中 758 位进入主验证，面对同一份含 3,495 种商品的候选目录。notebook 的示例分数用于演示评价器。[D2 清单](data/processed/d2/manifest.json) · [月度覆盖统计](data/processed/d2/coverage.csv)
+
+**如何解释十月与十一月的差异。** 两个月都只使用 2011 年 10 月 1 日零时以前的历史，十月预测下一月（T+1），十一月预测第二个月（T+2）。距上次购买的天数是最后一笔净保留购买到 `history_end` 的实际时间差，保留不足一天的部分。7、30、90 天窗口也都在这一截止点结束。因此，同一客户在两个月共用相同的历史、候选目录及历史特征。将来如果得分有差异，预测跨度、圣诞前备货，以及参与购买的客户和商品发生变化，都是可能因素，仅凭这一对月份无法分离各自的影响。原表在 12 月 9 日 12:50 截止，可观察到的十一月购买事后冲销时间更短。十二月不参与主实验评分。
+
+**如何解读跨月冲销。** 在限制客户资格及候选目录前，二月至十月共有 246,998 个不同的“月份–客户–商品”月末正例，计入后来可观察到的冲销后，其中 758 个归零。项目负责人另行提供的整表核对涵盖二月至十一月，结果为 788/301,922（0.26%），其中十一月为 30 个。这些比率衡量记录中的正例变化。要计算 Recall@10 或 NDCG@10 的变化，还需要逐查询的合格正例及模型排名。模型选择只使用十月验证。[测试前审计表](results/d2_audit/label_delay_pretest.csv) · [跨月冲销审计](scripts/audit_label_delay.py) · [定义与分母](docs/data_protocol.zh-CN.md)
+
 ### 技术文档 · 核对一张发票
 
 1. 在 Google Colab 选择 CPU 运行时，打开交易明细 notebook。在「文件 → 打开笔记本」中，可以选择 GitHub 标签页并粘贴该文件的 GitHub 地址，也可以上传下载的 `.ipynb` 文件。[原始交易明细与购物篮](docs/technical/transaction_records.ipynb)
@@ -50,15 +65,19 @@ python docs/technical/transaction_records.py
 
 ## 软件环境要求
 
-| 组件 | 运行环境 |
-|---|---|
-| 工作簿分析 | Google Colab CPU，或本地 Python 与 Jupyter。分析代码已在本地用 Python 3.12.14、pandas 2.2.3、openpyxl 3.1.5 验证。 |
-| 训练期 EDA | Python、pandas 和 Matplotlib。在 CPU 上使用 Jupyter 或 Colab 运行 notebook。 |
-| 模型实验（计划） | MF、LightGBM 使用 Colab CPU，LRURec、Mamba4Rec 使用 Colab NVIDIA GPU。各模型实际验证通过的依赖版本将随训练代码记录。 |
+在仓库根目录安装 CPU 运行环境，或安装已包含 CPU 依赖的开发环境。直接依赖已固定版本，适用于 Python 3.12；本地参考解释器为 Python 3.12.14。[CPU 依赖](requirements.txt) · [测试与 notebook 依赖](requirements-dev.txt)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+如需在本地执行 notebook、导出 Python 或运行测试，请在同一环境运行 `python -m pip install -r requirements-dev.txt`，并在本地 notebook 界面选用此环境的 Python 内核。测试命令为 `python -m pytest -q`。D1、D2 在 CPU 上使用 NumPy、pandas、openpyxl、Matplotlib 和 PyArrow。后续模型试训会分别记录实测依赖与 GPU 运行环境。
 
 ## 随机种子
 
-工作簿核验、发票示例、清洗审计及训练期 EDA 均使用确定性计算。按实验计划，超参数搜索使用训练种子 `42`，入选配置使用 `42`、`2026`、`3407` 复核，计算 ROC AUC 时另用种子 `5481` 抽取负例。
+工作簿核验、发票示例、清洗审计及训练期 EDA 均使用确定性计算。D2 用 `42` 抽取共用训练负例，用 `5481` 固定验证 AUC 样本。按模型实验计划，超参数搜索使用训练种子 `42`，入选配置使用 `42`、`2026`、`3407` 复核，计算 ROC AUC 时另用种子 `5481` 抽取负例。
 
 ## 数据集引用
 
@@ -78,11 +97,14 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | 已核验 | [整表对账](results/reversal_benchmark.csv) · [商品 C 单匹配明细](results/credit_allocations.csv.gz) · [匹配规则差异](results/reversal_match_differences.csv) | 按原始 Excel 行号核验冲销分配、分类与分母。 |
 | 本地已核验 | [训练期 EDA 输出目录](results/training_eda/) | 训练窗口总量及分母、月度统计、分布与商品热度表和图，格式为 JSON、CSV 和 PNG。 |
 | 运行后可查看 | [交易明细 notebook](docs/technical/transaction_records.ipynb) 的输出单元格 | 工作表行列数、发票明细和购物篮汇总。 |
+| 已本地核验 | [D2 清单](data/processed/d2/manifest.json) · [月度覆盖统计](data/processed/d2/coverage.csv) · [Parquet 表](data/processed/d2/) | 各截止点的共用输入、客户覆盖分母、可复现的训练与验证抽样。 |
 | 计划生成 | `results/test_metrics.csv` | 在冻结的测试协议下比较四个模型。 |
 | 计划生成 | `results/cohort_coverage.csv`、`results/segment_metrics.csv`、`results/case_study.csv` | 客户覆盖、分组指标和个案推荐结果。 |
 | 计划生成 | `experiments/exp_XXX/diagnostics_panel.png` | 各次实验的诊断图。 |
 
 ## 技术文档与 Canvas 提交材料
+
+技术报告草稿汇总已实测的 D1、D2 结果，供后续整理 Canvas 提交稿。数据协议给出复现查询和指标的定义，研究计划说明后续模型实验及其验收标准。[技术报告草稿](docs/technical_report.zh-CN.md) · [数据协议](docs/data_protocol.zh-CN.md) · [研究计划](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 项目自编文档分别提供英文版和中文版。技术文档 notebook 的每个 Markdown 单元格先呈现完整的英文标题和正文，再呈现完整的中文标题和正文。两种语言共用同一份代码。[技术文档](docs/technical/transaction_records.ipynb)
 
