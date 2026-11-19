@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. The data-preparation workflow traces each source row through cleaning and produces the paid basket events that all four models will use. The research plan describes the training and evaluation workflow under development. [Research and development plan](docs/CS5481_Project2_Research_Development_Plan_3.3.en.md)
+This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. The data-preparation workflow traces each source row through cleaning and produces the paid basket events that all four models will use. The research plan describes the training and evaluation workflow under development. [Research and development plan v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
 
 ## Run instructions
 

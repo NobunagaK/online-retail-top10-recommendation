@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。数据准备流程逐行记录清洗决定，并生成四种模型共用的正价购买购物篮事件。研究计划记录后续要实现的训练和评估流程。[研究与代码开发计划](docs/CS5481_Project2_Research_Development_Plan_3.3.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。数据准备流程逐行记录清洗决定，并生成四种模型共用的正价购买购物篮事件。研究计划记录后续要实现的训练和评估流程。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 ## 运行说明
 
