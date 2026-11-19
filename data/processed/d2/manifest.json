@@ -1,0 +1,255 @@
+{
+  "protocol": "v3.4_monthly_net_retained_v1",
+  "recommendation_quantity_policy": "net_retained_all_matched_credits_v1",
+  "python": "3.12.14",
+  "pandas": "2.2.3",
+  "pyarrow": "20.0.0",
+  "input_sha256": {
+    "results/data_manifest.json": "57ef1484a901f5c6a8f410bc572b85c9cc0c7d56209171c10f71620bb2736849",
+    "data/processed/signed_ledger_b.csv.gz": "13cdcdc8d8d621a3b2a5f86affba21e81eedd85289330bb43a7ae943bb204de2",
+    "results/credit_allocations.csv.gz": "9c9c2e8c2f8d2d4b9659327523f76e1a87b58d51433283cb87e302642bc8b97c"
+  },
+  "train_negative_seed": 42,
+  "auc_sample_seed": 5481,
+  "max_training_negatives_per_positive": 5,
+  "max_auc_negatives_per_positive": 10,
+  "shared_initial_sequence_length": 64,
+  "first_train_target": "2011-02-01",
+  "last_train_target": "2011-09-01",
+  "frozen_evaluation_history_end": "2011-10-01",
+  "last_target_end_exclusive": "2011-11-01",
+  "splits": [
+    "train",
+    "validation"
+  ],
+  "test_gate": "November labels, cohorts and AUC samples are reserved for D6 after selection.json is frozen.",
+  "outputs": {
+    "train_pairs.parquet": {
+      "rows": 843720,
+      "columns": [
+        "query_id",
+        "item_id",
+        "label"
+      ],
+      "sha256": "1e343d209c4e0d20f996efb34b5a482ce5d8933a0a629c06fa7c3244bd28811c",
+      "definition": "Contiguous eligible MF/LightGBM groups; all positives plus at most five unique negatives per positive, sampled from the StockCode-ordered historical catalog with seed and query ID."
+    },
+    "histories.parquet": {
+      "rows": 23252,
+      "columns": [
+        "customer_id",
+        "history_end",
+        "history_item_ids",
+        "history_basket_sizes",
+        "history_len",
+        "seq_len",
+        "is_truncated",
+        "cuts_basket",
+        "history_sha256"
+      ],
+      "sha256": "c5ed84357d80122cd4f767ecd81bf5b46cd9f71f93954c9567a822d50ae76ffb",
+      "definition": "One row per customer/cutoff. Full chronological item IDs and basket sizes are kept. L=64 fields describe model input truncation."
+    },
+    "customer_features.parquet": {
+      "rows": 23252,
+      "columns": [
+        "customer_id",
+        "event_count",
+        "invoice_count",
+        "quantity",
+        "amount_gbp",
+        "last_purchase_time",
+        "invoices_7d",
+        "invoices_30d",
+        "invoices_90d",
+        "distinct_items",
+        "mean_basket_size",
+        "days_since_last_purchase",
+        "history_end"
+      ],
+      "sha256": "b7d06ff7ad12736d31cd751211319ed5e93fc298dce492329353b37951e785be",
+      "definition": "One row per history customer/cutoff, with remaining units, purchase amount, distinct invoice counts, fixed-cutoff recency and 7/30/90-day invoice frequencies."
+    },
+    "item_features.parquet": {
+      "rows": 27783,
+      "columns": [
+        "stock_code",
+        "event_count",
+        "invoice_count",
+        "quantity",
+        "amount_gbp",
+        "last_purchase_time",
+        "invoices_7d",
+        "invoices_30d",
+        "invoices_90d",
+        "distinct_customers",
+        "days_since_last_purchase",
+        "history_end"
+      ],
+      "sha256": "697e85c7a834bb056ba419084bb8d45616c3cb14edd8739028352f4920de2122",
+      "definition": "One row per historical StockCode/cutoff, with item aggregates and distinct buying customers."
+    },
+    "customer_item_features.parquet": {
+      "rows": 1005341,
+      "columns": [
+        "customer_id",
+        "stock_code",
+        "event_count",
+        "invoice_count",
+        "quantity",
+        "amount_gbp",
+        "last_purchase_time",
+        "invoices_7d",
+        "invoices_30d",
+        "invoices_90d",
+        "days_since_last_purchase",
+        "history_end"
+      ],
+      "sha256": "65bb92d86cdbff7e904f274cb4bf3f0c6c77c7d3c895422942054ffb4bbc1b49",
+      "definition": "Sparse historical customer/SKU pairs. Unobserved pair frequencies are zero and time of last purchase is undefined."
+    },
+    "catalogs.parquet": {
+      "rows": 27783,
+      "columns": [
+        "catalog_id",
+        "history_end",
+        "StockCode",
+        "item_id"
+      ],
+      "sha256": "38eb51a836aa0ee28bd15344d82b7ce9ec113d3d97072923e7fbd20f6fb8e305",
+      "definition": "One row per eligible StockCode/cutoff, ordered by exact StockCode. All four models score this entire catalog for their eligible evaluation customers."
+    },
+    "cohorts.parquet": {
+      "rows": 25921,
+      "columns": [
+        "query_id",
+        "customer_id",
+        "split",
+        "history_end",
+        "target_start",
+        "target_end",
+        "catalog_id",
+        "active",
+        "has_history",
+        "has_valid_training_query",
+        "full_positive_count",
+        "positive_count",
+        "eligible",
+        "supplemental_eligible",
+        "coverage_status"
+      ],
+      "sha256": "112178d6126df08d4cdb617c9ca4491827e8751d58dc69c4b9f13ebfe854bcd4",
+      "definition": "All history, previous training-query, or active customers. has_valid_training_query refers to earlier eligible training months; for validation it covers all eight months. supplemental_eligible includes all active evaluation customers with a valid training query."
+    },
+    "queries.parquet": {
+      "rows": 6188,
+      "columns": [
+        "query_id",
+        "customer_id",
+        "split",
+        "history_end",
+        "target_start",
+        "target_end",
+        "catalog_id",
+        "positive_count",
+        "full_positive_count",
+        "positive_sha256",
+        "catalog_sha256",
+        "history_sha256",
+        "train_negative_count",
+        "train_sampling_seed"
+      ],
+      "sha256": "df1c0d90ee9feae781cc844af99163c73e883a1d68afc66bdd56fea5ef8a9415",
+      "definition": "One eligible customer/month. Catalog, chronological history and in-catalog positive hashes use compact UTF-8 JSON. train_negative_count is zero for evaluation."
+    },
+    "labels.parquet": {
+      "rows": 246998,
+      "columns": [
+        "customer_id",
+        "StockCode",
+        "item_id",
+        "in_catalog",
+        "query_id",
+        "eligible",
+        "supplemental_eligible",
+        "split",
+        "target_start",
+        "catalog_id"
+      ],
+      "sha256": "df22542088c09bb36e803511a4dca9eb896662b9b0a5c59c536de82b8863db1e",
+      "definition": "All target-month distinct positive customer/SKU pairs after target-end credits, including ineligible customers and out-of-catalog SKUs. Only in-catalog rows receive an item_id. Main positives require eligible and in_catalog."
+    },
+    "coverage.csv": {
+      "rows": 9,
+      "columns": [
+        "split",
+        "history_end",
+        "target_start",
+        "target_end",
+        "catalog_items",
+        "catalog_sha256",
+        "history_customers",
+        "prior_valid_training_customers",
+        "active_customers",
+        "eligible_customers",
+        "eligible_share_of_active",
+        "active_without_history",
+        "active_with_history_without_valid_training_query",
+        "active_only_out_of_catalog",
+        "inactive_valid_training_customers",
+        "inactive_history_customers",
+        "full_positive_pairs",
+        "in_catalog_positive_pairs",
+        "out_of_catalog_positive_pairs",
+        "out_of_catalog_positive_share",
+        "out_of_catalog_skus",
+        "eligible_in_catalog_positive_pairs",
+        "supplemental_customers",
+        "supplemental_full_positive_pairs",
+        "truncated_queries_L64",
+        "within_basket_cut_queries_L64",
+        "mean_history_len",
+        "median_history_len",
+        "truncated_query_share_L64",
+        "within_basket_cut_query_share_L64",
+        "train_negative_rows",
+        "auc_negative_rows"
+      ],
+      "sha256": "36575413017105d35cd63234a4fda0ca298e8302417b26f399bc84b355c64be0",
+      "definition": "Customer counts overlap unless grouped by cohorts.coverage_status. Out-of-catalog share uses all active customer/SKU pairs. Cut counts use eligible queries with L=64."
+    },
+    "auc_pairs.parquet": {
+      "rows": 266180,
+      "columns": [
+        "split",
+        "query_id",
+        "item_id",
+        "label"
+      ],
+      "sha256": "c9cec150ef5097e114c9a095ba3eaac7f29f04391eae84bed7fd6c866c73edff",
+      "definition": "October evaluation only. All positives plus at most ten unique negatives per positive under the independent seed 5481. All models and training seeds share these pairs."
+    },
+    "item_vocab.parquet": {
+      "rows": 3496,
+      "columns": [
+        "stock_code",
+        "item_id",
+        "first_event_time",
+        "first_history_end"
+      ],
+      "sha256": "9a602f54f530fd93b59e1e637b1ec932821c06ed1a020d28b84cec4d9e4a67bb",
+      "definition": "Append-only ID at first visible training snapshot. Ties on earliest retained basket time at the same snapshot use exact StockCode."
+    },
+    "item_support.parquet": {
+      "rows": 3496,
+      "columns": [
+        "stock_code",
+        "item_id",
+        "mf_observed_train_pair",
+        "sequence_in_train_catalog"
+      ],
+      "sha256": "3775a81d03b021f11e243a356649d7d16834cbbfc4df4006305ab271e5358f83",
+      "definition": "Source diagnostics: observed MF positive/negative training pairs; presence in a sequential training query's full-softmax candidate set. Actual supported parameter rows are tracked by each fitted model."
+    }
+  }
+}

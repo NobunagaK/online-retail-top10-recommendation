@@ -1,0 +1,6 @@
+# Local CPU data preparation, exploratory analysis and monthly query protocol.
+numpy==2.2.6
+pandas==2.2.3
+openpyxl==3.1.5
+matplotlib==3.10.8
+pyarrow==20.0.0
