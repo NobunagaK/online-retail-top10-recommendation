@@ -12,6 +12,62 @@ from src.data.exception_impact import impact_tables
 from src.data.exception_missing import missingness_tables
 from src.data.exception_notes import description_evidence, mentioned_invoice_trace, sku_name_evidence
 from src.data.purchase_evidence import purchase_evidence
+from src.data.reversals import compute_reversal_tables
+
+
+REVERSAL_GUIDE = [
+    ("ledger_summary", "Frozen merchandise policy. Signed sales and credits retain recorded prices. The gross purchase view deducts only allocated cancellations at their sale prices. Source exclusions are first-match counts.", "冻结商品规则。带符号销售与贷项取各行记录价格；有效购买毛额只按原销售单价扣减已匹配的取消数量。来源筛选按最先命中的规则归因。"),
+    ("credit_summary", "Canonical merchandise credits by destination region and operational status. Amounts use recorded credit prices. Time thresholds are regional assumptions.", "按贷项目的地区与操作分类汇总实际规则下的商品贷项，金额取贷项单价。时限是项目对地区的假设。"),
+    ("credit_allocations", "Every eligible merchandise credit with matched sale row, time lag, region, threshold and allocation balance. An unmatched row has no allocated sale.", "全部符合条件的商品贷项，列出匹配销售行、时间差、地区、时限及分配余额；未匹配的贷项无对应销售行。"),
+    ("credit_controls", "Compare code shape versus frozen SKU rules, strict versus inclusive time, and independent versus balance-constrained matches against the supplied study benchmarks.", "以讨论稿基准对照商品码外形与冻结规则、严格早于与允许同时间，以及独立匹配与数量余额约束的结果。"),
+    ("credit_control_rows", "Credit rows whose inclusion, matched sale or class changes between scenarios. Use the source row numbers to reproduce a difference.", "对照情景之间在纳入状态、对应销售行或操作类别上有变化的贷项，可用原始行号复核。"),
+    ("reversal_examples", "Selected credit and sale links including two large reversals, unequal prices, partial cancellations and returns. Track both reversible units and effective purchase units.", "追踪两笔大额撤销、价格不相等、部分取消及退货示例的贷项与销售。分别核对可匹配余额和有效购买数量。"),
+    ("sku_policy_differences", "Source rows with different decisions under the five-leading-digit control and frozen product-code rules, including PADS and numeric delivery or packing codes.", "五位数字开头对照规则与冻结商品清单产生不同决定的原始行，含 PADS 及数字编码的运费、包装费。"),
+]
+
+
+def reversal_examples(allocations):
+    """Trace all credits on example sales and distinguish allocation from purchase units."""
+    matches = allocations.dropna(subset=["purchase_excel_row"]).sort_values(["credit_time", "credit_excel_row"]).copy()
+    cancelled = matches["status"].eq("cancellation")
+    matches["cancelled_units_here"] = matches["credited_units"].where(cancelled, 0)
+    matches["gross_deduction_gbp_here"] = matches["cancelled_units_here"] * matches["purchase_unit_price"]
+    cumulative = matches.groupby("purchase_excel_row")["cancelled_units_here"].cumsum()
+    matches["purchase_units_after_credit"] = matches["purchase_quantity"] - cumulative
+    cutoff = pd.Timestamp("2011-10-01")
+    before_cutoff = matches["credit_time"].lt(cutoff)
+    cancelled_by_cutoff = matches.loc[before_cutoff].groupby("purchase_excel_row")["cancelled_units_here"].sum()
+    matches["purchase_units_at_oct1"] = (
+        matches["purchase_quantity"] - matches["purchase_excel_row"].map(cancelled_by_cutoff).fillna(0)
+    ).where(matches["purchase_time"].lt(cutoff)).astype("Int64")
+
+    selected = matches.loc[
+        matches["credit_invoice_no"].isin(["C541433", "C581484"])
+        | matches["credit_excel_row"].eq(222694), "purchase_excel_row"
+    ]
+    partial = matches.loc[cancelled & matches["credited_units"].lt(matches["balance_before"]), "purchase_excel_row"].head(1)
+    returned = matches.loc[matches["status"].eq("return"), "purchase_excel_row"].head(1)
+    return matches.loc[matches["purchase_excel_row"].isin(pd.concat([selected, partial, returned]))].reset_index(drop=True)
+
+
+def reversal_worksheets(raw):
+    evidence = compute_reversal_tables(raw)
+    main = "frozen_balance_inclusive"
+    summary = evidence["reconciliation"].loc[lambda x: x["scenario"].eq(main)].drop(columns="scenario")
+    summary = summary.assign(section="ledger_and_matching")
+    source = evidence["source_audit"].loc[lambda x: x["stock_policy"].eq("frozen")].drop(columns="stock_policy")
+    source = source.rename(columns={"reason": "metric"}).assign(section="raw_first_rule")
+    overview = pd.concat([summary, source], ignore_index=True)
+    allocations = evidence["credit_allocations"]
+    return {
+        "ledger_summary": overview[["section", "metric", "customer_id_status", "rows", "units", "signed_amount_gbp"]],
+        "credit_summary": evidence["region_summary"].loc[lambda x: x["scenario"].eq(main)].drop(columns="scenario"),
+        "credit_allocations": allocations,
+        "credit_controls": evidence["benchmark"],
+        "credit_control_rows": evidence["match_differences"],
+        "reversal_examples": reversal_examples(allocations),
+        "sku_policy_differences": evidence["source_differences"],
+    }
 
 
 def _sign(values: pd.Series) -> pd.Series:
@@ -110,6 +166,7 @@ def build_tables(raw: pd.DataFrame) -> dict[str, pd.DataFrame]:
         ("customer_impact_summary", "Identified customers grouped by whether they have regular, exceptional or both kinds of lines.", "按已知客户拥有常规行、异常行或两类兼有进行汇总。"),
         ("customer_impact", "Per identified customer, compare distinct invoices, recency and monetary totals under both definitions. Full-window descriptive analysis.", "对每一位已知客户，比较两种口径的不同发票数、距最近记录天数及金额。仅作全期描述。"),
     ]
+    guide.extend(REVERSAL_GUIDE)
     return {
         "guide": pd.DataFrame(guide, columns=["Sheet", "What it contains", "内容与口径"]),
         "sign_combinations": combinations,
@@ -121,6 +178,7 @@ def build_tables(raw: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "invoice_references": mentioned_invoice_trace(raw, flagged),
         "sku_names": sku_name_evidence(raw),
         **impact_tables(raw, exception),
+        **reversal_worksheets(raw),
     }
 
 

@@ -40,7 +40,7 @@ def _monthly(monthly, window):
         ("baskets", "Customer invoices (baskets)"),
         ("basket_item_events", "Distinct items summed across baskets (events)"),
         ("units", "Quantity purchased (units)"),
-        ("amount_gbp", "Recorded purchase amount (GBP)"),
+        ("amount_gbp", "Active purchase amount (GBP)"),
     ]
     month_labels = pd.PeriodIndex(monthly["month"], freq="M").strftime("%b\n%Y")
     for axis, (column, title) in zip(axes, panels):
@@ -62,7 +62,7 @@ def _distributions(distributions, window):
              f"{window}  ·  Share at or above each observed value  ·  Both axes logarithmic  ·  Full range")
     panels = [
         ("line_unit_price_gbp", "Unit price per purchase line", "GBP per unit", "Purchase lines (%)", grid[0, :3]),
-        ("line_quantity", "Quantity per purchase line", "Units", "Purchase lines (%)", grid[0, 3:]),
+        ("line_quantity", "Active units per purchase line", "Units", "Purchase lines (%)", grid[0, 3:]),
         ("basket_distinct_skus", "Size of a basket", "Distinct SKUs", "Baskets (%)", grid[1, :2]),
         ("customer_history_events", "Events per customer", "Basket-item events", "Customers (%)", grid[1, 2:4]),
         ("customer_baskets", "Baskets per customer", "Completed baskets", "Customers (%)", grid[1, 4:]),

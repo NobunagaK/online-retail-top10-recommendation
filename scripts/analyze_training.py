@@ -15,15 +15,22 @@ from src.data.training_eda_plots import build_training_figures
 from src.data.training_preference import training_preference
 
 
-EVENT_PATH = "data/processed/basket_events.csv.gz"
-LINE_PATH = "data/processed/purchase_lines.csv.gz"
+EVENT_PATH = "data/processed/training_basket_events.csv.gz"
+LINE_PATH = "data/processed/training_purchase_lines.csv.gz"
 MANIFEST_PATH = "results/data_manifest.json"
 
 
 def load_training_inputs(project):
-    """Verify both D1 exports against their manifest before reading the source rows."""
+    """Load the D1 snapshot that uses only credits observed before the training cutoff."""
     manifest = json.loads((project / MANIFEST_PATH).read_text(encoding="utf-8"))
     input_hashes = {}
+    if not {EVENT_PATH, LINE_PATH}.issubset(manifest["outputs"]):
+        raise ValueError("Regenerate the D1 cutoff-specific training snapshot and its manifest.")
+    snapshot = manifest["training_snapshot"]
+    if (pd.Timestamp(snapshot["start_inclusive"]) != TRAIN_START
+            or pd.Timestamp(snapshot["end_exclusive"]) != TRAIN_END
+            or pd.Timestamp(snapshot["credit_time_end_exclusive"]) != TRAIN_END):
+        raise ValueError("The D1 snapshot uses a different basket or credit time window.")
     for relative in (EVENT_PATH, LINE_PATH):
         with (project / relative).open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
@@ -34,7 +41,8 @@ def load_training_inputs(project):
     events = pd.read_csv(project / EVENT_PATH, dtype=identifiers, keep_default_na=False,
                          parse_dates=["basket_time"])
     lines = pd.read_csv(project / LINE_PATH, dtype=identifiers, keep_default_na=False,
-                        usecols=["ExcelRow", *identifiers, "InvoiceDate", "Quantity", "UnitPrice"],
+                        usecols=["ExcelRow", *identifiers, "InvoiceDate", "Quantity", "UnitPrice",
+                                 "original_quantity", "cancelled_units", "returned_units"],
                         parse_dates=["InvoiceDate"])
     return events, lines, input_hashes
 
@@ -50,6 +58,9 @@ def summarize_window(train_events, train_lines, preferences, input_hashes):
         "recorded_amount_gbp": float(format(train_events["amount_gbp"].sum(), ".15g")),
         **preferences,
         "definitions": {
+            "source_lines": "Positive sale lines with units still active at the exclusive training cutoff. Fully offset lines are absent.",
+            "units": "Original sale units less quantities allocated to cancellation proxies observed before the cutoff. Return proxies preserve purchase units.",
+            "recorded_amount_gbp": "Surviving units multiplied by the original sale line price, summed over active training purchases.",
             "repeat_event_share": "Basket-item events with an earlier completed basket for the same customer and SKU / all training basket-item events. Equal timestamps provide no earlier history.",
             "repeated_pair_share": "Observed customer-SKU pairs with a strictly later purchase / all observed training customer-SKU pairs.",
             "interaction_sparsity": "1 - observed distinct customer-SKU pairs / (active customers x observed SKUs).",

@@ -6,43 +6,29 @@
 
 ## 运行说明
 
-### D1 · 筛选之前先分析业务情形
+### D1 · 从原始交易到训练期购物篮
 
-先打开特殊交易分析 notebook，选择 CPU，用原始工作簿从上往下运行。17 张 Excel 工作表的计算过程均可在代码单元格中查看。输出 Excel 的 `C_invoices`、`Q_nonpositive`、`P_nonpositive` 三张表分别列出 C 前缀、数量非正和单价非正的完整明细。三张表可以重叠。`sign_combinations` 用互斥分组核对总数，`ExcelRow` 可定位原始工作表行号。1,336 条非 C 负数量明细有单独的表，可以按时间追查发票与商品、查阅原始备注并对照案例时间线。价格分析列出有客户编号的全部 40 条零价明细，逐行检查同票是否还有正价商品，并用发票 `550188` 对照商品 `22636` 的两种单价。后续章节分析异常记录对客户活动统计的影响。[分析 notebook](docs/technical/transaction_exception_analysis.ipynb) · [可筛选的 Excel 结果](results/transaction_exceptions.xlsx)
+课程要求解释取消、退货、重复交易明细、缺失客户编号、异常数量或价格，说明如何聚合客户与商品的交互，并按时间构建历史。三份 notebook 使用同一工作簿。[五项课程要求，第 3 页](resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3) · [异常分析](docs/technical/transaction_exception_analysis.ipynb) · [清洗与课程问题回答](notebooks/project2_colab.ipynb) · [训练期探索](notebooks/training_eda.ipynb)
 
-运行后，Drive 项目目录下会生成 `results/transaction_exceptions.xlsx`。本地可在仓库根目录执行 `python -m scripts.analyze_exceptions`。此次调查读取全部原始行，包含完全重复的行。下方五步审计衡量的是从正向购买样本剔除记录时影响了多少行。两项操作都保留原始工作簿。
+1. **先看异常分析。** 按原始 Excel 行号核对 C 单、负数量、零价、坏账和库存备注；在新增的匹配表中追查每条商品冲销的原单、余额、时间和地区，并比较几种清洗规则带来的差异。[证据工作簿](results/transaction_exceptions.xlsx)
+2. **再做 D1 清洗。** 查看每一步的证据、行数、处理理由以及五项课程问题的回答。A 表保留匿名和已知客户的商品交易；B 表只保留已知客户。两表都按记录中的原价将正负明细各计一次。推荐购物篮扣除已知的取消数量，部分取消保留余量，按规则认定的退货保留原购买事件。[经营账 A](data/processed/signed_ledger_a.csv.gz) · [客户账 B](data/processed/signed_ledger_b.csv.gz) · [10 月 1 日购物篮快照](data/processed/training_basket_events.csv.gz)
+3. **最后看训练期 EDA。** 读取 2011 年 10 月 1 日零时的专用快照，覆盖 2010 年 12 月至 2011 年 9 月完成的购物篮。月度活动、单价和数量分布、商品热度、复购和稀疏度均按当时已知的冲销重算。[训练期统计](results/training_eda/summary.json) · [月度统计](results/training_eda/monthly_activity.csv) · [商品排名](results/training_eda/item_popularity.csv)
 
-### D1 · 生成正价购买明细和购物篮事件
+**在 Colab 运行。** 在「文件 → 打开笔记本 → GitHub」选择仓库和包含该文件的分支，依次打开上述 notebook，在 CPU 上从上往下运行。Drive 项目根目录为 `我的云端硬盘/CS5481_Project2_OnlineRetail/`，原表位于 `data/raw/Online Retail.xlsx`。分析和清洗均直接读取原表；EDA 读取清洗产物。生成的表和图写入同一项目的 `data/processed/` 和 `results/`。
 
-在 Colab 选择 CPU，打开项目主 notebook，从上到下运行，按提示挂载 Drive。默认输入路径为 `我的云端硬盘/CS5481_Project2_OnlineRetail/data/raw/Online Retail.xlsx`。notebook 核验工作簿，读取 `Online Retail` 工作表，在代码单元格中展示清洗与聚合的计算过程。生成的文件保存在项目目录下，具体位置见下方结果表。[项目主 notebook](notebooks/project2_colab.ipynb)
-
-要在本地复现，使用已安装 pandas 和 openpyxl 的 Python 3.11 或更高版本，在仓库根目录执行以下命令。
+**在本地复现。** 安装下方所列依赖，从仓库根目录按顺序运行。原始工作簿在其他位置时，前两条命令可传 `--workbook`。清洗和 EDA 支持用 `--project-dir` 指定产物根目录。
 
 ```bash
+python -m scripts.analyze_exceptions
 python -m scripts.prepare_data
-```
-
-如原始工作簿位于其他位置，可用 `--workbook` 指定路径。用 `--project-dir` 指定生成文件的项目目录，用 `--output` 单独指定五步审计 CSV 的路径。[本地运行入口](scripts/prepare_data.py)
-
-**如何核对行数。** 原表共有 **541,909 行交易明细**。同一行可能符合多项条件。五步基线审计中，`raw_flagged` 统计原表中符合该项条件的全部行，`rows_removed` 把每一行只计入它最先命中的步骤。五步共排除 **149,217 行**，进入商品筛选前剩 **392,692 行**。在 `cleaning_steps.csv` 中，先看进入本步的行数 `rows_before`，再核对本步排除数 `rows_removed` 和剩余数 `rows_after`。`evidence_sheets` 给出作为依据的异常工作表或训练期编码登记表，`reason_en` 和 `reason_zh` 用中英文说明理由。用 `row_decisions.csv.gz` 可按 Excel 原始行号回查处理决定。商品规则进一步排除 **1,632 行**，最后得到 **391,060 行正价购买明细**。[逐步清洗与证据](results/cleaning_steps.csv) · [五步基线审计](results/cleaning_audit.csv)
-
-**如何使用清洗结果。** `purchase_lines.csv.gz` 的每一行是一条保留的正价购买明细。`basket_events.csv.gz` 的每一行对应一位客户在一张发票中的一种商品。聚合时分别累加件数和各行金额（数量 × 单价）。该客户在同张发票上最后一条保留明细的时间为整篮完成时间。全表共得到 **386,236 个事件**，涉及 **18,402 个购物篮、4,334 位客户和 3,658 种商品**。MF、LightGBM、LRURec 和 Mamba4Rec 共用这份购物篮事件表构建购买历史。训练和评估属于后续步骤。
-
-### D1 · 探索训练期购买数据
-
-在 Colab 选择 CPU，打开训练期 EDA notebook，从上往下运行。使用 `data/processed/` 中的两份 D1 产物和 `results/data_manifest.json` 内的校验值，或使用 notebook 提供的经校验的同版本文件。在本地复现时，从仓库根目录运行下方命令。如果清洗产物位于其他项目文件夹，用 `--project-dir` 指定该目录。程序在所选项目的 `results/training_eda/` 下写入表格和图形。[训练期 EDA notebook](notebooks/training_eda.ipynb) · [本地运行入口](scripts/analyze_training.py)
-
-```bash
 python -m scripts.analyze_training
 ```
 
-**统计范围。** 选取 2010 年 12 月 1 日起、2011 年 10 月 1 日前完成的正价商品购物篮，按这些购物篮取对应的原始购买明细。训练窗口共含 **262,597 条购买明细、260,199 个购物篮–商品事件和 13,081 个购物篮**。十月验证、十一月测试的活动在该窗口之外。
+**如何理解取消和退货。** 在同客户、同商品中寻找时间不晚于 C 单且可冲销余量足够的一条最近购买。可跨价格匹配。同分钟先选 Excel 行号在 C 单之前的正单，再取最小行号。英国、指定的 23 个欧洲地区、其他已知地区的取消上限分别为 72、120、240 小时，等于上限仍算取消，超过上限为项目定义的退货。发货、签收及实物退回无法从工作簿观察。匿名、未匹配和未知地区保留独立审计状态。[整表对账](results/reversal_benchmark.csv) · [商品 C 单匹配明细](results/credit_allocations.csv.gz) · [匹配规则差异](results/reversal_match_differences.csv)
 
-**如何解读输出。**
+全表共有 8,665 条商品 C 单明细，分类结果为取消 1,473 条、按项目定义的退货 5,883 条、已知客户未匹配 1,147 条、匿名 162 条。发票 `541431` 和 `581483` 两笔巨额购买在相应冲销后有效件数均为 0。有 12 条 C 单与原购买记录在同一分钟。
 
-1. 从月度表查看活跃客户、购物篮、事件、件数与金额（英镑）的变化。同一客户可在多个月活跃，把每月客户数相加会重复计算回头客。[月度统计表](results/training_eda/monthly_activity.csv) · [月度交易量图](results/training_eda/monthly_volume.png)
-2. 阅读分布时先确认统计单位。单价和购买件数取自每条明细；篮大小为一张客户发票中不同商品编码数；客户历史长度为该客户的购物篮–商品事件数。正价商品单价中位数为 £1.95，篮大小中位数为 15 种商品，客户历史长度中位数为 34 个事件。[分布摘要](results/training_eda/distribution_summary.csv) · [各取值频数](results/training_eda/distributions.csv) · [分布图](results/training_eda/size_distributions.png)
-3. 商品热度按购买该商品的不同客户数排序。最热门的 351 种商品占训练期事件的 46.71%。3,613 位客户与 3,501 种商品可组成 12,649,113 个客户–商品对，实际观察到 188,368 个，**稀疏度为 98.51%**。若同一客户在完成时间**严格更早**的购物篮中买过同一商品，本次事件计作复购，共 **71,824 / 260,199 个事件（27.60%）**。下一阶段 D2 将按目标月构造查询与标签，编写统一评价器。[商品热度表](results/training_eda/item_popularity.csv) · [商品热度图](results/training_eda/item_popularity.png) · [汇总及分母](results/training_eda/summary.json)
+**如何理解金额与时间。** 有效购买按取消后剩余件数乘以原购买单价计算；账面净额使用每条正负记录自己的单价。前者用于购买行为，后者用于经营统计。截止时间后的 C 单只影响较晚的快照。数据摘要和每份产物的校验值见清单。[清洗产物清单](results/data_manifest.json)
 
 ### 技术文档 · 核对一张发票
 
@@ -85,6 +71,8 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | 已核验 | [data_manifest.json](results/data_manifest.json) | 输入工作簿的标识和本次清洗摘要。 |
 | 已核验 | [row_decisions.csv.gz](data/processed/row_decisions.csv.gz) | 全部原始明细的 Excel 行号与清洗决定。 |
 | 已核验 | [purchase_lines.csv.gz](data/processed/purchase_lines.csv.gz)、[basket_events.csv.gz](data/processed/basket_events.csv.gz) | 保留的购买明细和按客户、发票、商品聚合的购物篮事件。 |
+| 已核验 | [经营账 A](data/processed/signed_ledger_a.csv.gz) · [客户账 B](data/processed/signed_ledger_b.csv.gz) · [10 月 1 日购物篮快照](data/processed/training_basket_events.csv.gz) | 正负经营／客户明细，以及 10 月 1 日可见的有效购买。 |
+| 已核验 | [整表对账](results/reversal_benchmark.csv) · [商品 C 单匹配明细](results/credit_allocations.csv.gz) · [匹配规则差异](results/reversal_match_differences.csv) | 按原始 Excel 行号核验冲销分配、分类与分母。 |
 | 本地已核验 | [训练期 EDA 输出目录](results/training_eda/) | 训练窗口总量及分母、月度统计、分布与商品热度表和图，格式为 JSON、CSV 和 PNG。 |
 | 运行后可查看 | [交易明细 notebook](docs/technical/transaction_records.ipynb) 的输出单元格 | 工作表行列数、发票明细和购物篮汇总。 |
 | 计划生成 | `results/test_metrics.csv` | 在冻结的测试协议下比较四个模型。 |
@@ -95,4 +83,4 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 
 项目自编文档分别提供英文版和中文版。技术文档 notebook 的每个 Markdown 单元格先呈现完整的英文标题和正文，再呈现完整的中文标题和正文。两种语言共用同一份代码。[技术文档](docs/technical/transaction_records.ipynb)
 
-Canvas 提交包将包含技术报告、源代码、README，以及项目采用且课程允许提交的演示材料。按研究计划，可复用的数据处理、模型和评估逻辑写成 Python 模块，notebook 负责运行与解释。
+Canvas 提交包将包含技术报告、源代码、README，以及项目采用且课程允许提交的演示材料。后续每份交付物先核对课程文件第 3 页的相应要求，为每项回答标明可复现的证据，再说明项目额外完成的分析和仍待测量的指标。[项目二评分要求](resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)

@@ -16,6 +16,8 @@ def select_training_data(
 
     The event table supplies one completion time per (CustomerID, InvoiceNo).
     A basket completed at the cutoff is excluded even if some lines are earlier.
+    Inputs with credit adjustments must already reflect only information available
+    at the requested cutoff. Filtering dates cannot undo a later credit.
     Read CSV identifiers as strings to preserve their original spelling and zeros.
     """
     start, end = pd.Timestamp(start), pd.Timestamp(end)
@@ -29,7 +31,12 @@ def select_training_data(
         ["basket_time", *INVOICE_KEYS, "StockCode"], ignore_index=True,
     )
     baskets = train_events[[*INVOICE_KEYS, "basket_time"]].drop_duplicates()
-    train_lines = purchase_lines.merge(baskets, on=INVOICE_KEYS, how="inner", validate="many_to_one")
+    train_lines = purchase_lines.merge(
+        baskets, on=INVOICE_KEYS, how="inner", validate="many_to_one", suffixes=("_source", ""),
+    )
+    if "basket_time_source" in train_lines:
+        if not pd.to_datetime(train_lines.pop("basket_time_source")).eq(train_lines["basket_time"]).all():
+            raise ValueError("Purchase lines and events disagree on their original basket completion time.")
     train_lines["InvoiceDate"] = pd.to_datetime(train_lines["InvoiceDate"])
     if train_lines["InvoiceDate"].gt(train_lines["basket_time"]).any():
         raise ValueError("A retained invoice line is dated after its basket's completion.")
@@ -70,8 +77,8 @@ def distribution_tables(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return exact-value frequencies and summaries of five training distributions.
 
-    Price and quantity are observed once per source line, with no quantity
-    weighting. Basket size counts distinct SKUs per completed customer invoice.
+    Original unit price and surviving quantity are observed once per active
+    source line, with no quantity weighting. Basket size counts distinct SKUs per completed customer invoice.
     History length counts basket-item events per customer across the full training
     window, including repeat purchases on later invoices. Basket frequency counts
     distinct completed invoices per customer in that same window. Quantiles use
