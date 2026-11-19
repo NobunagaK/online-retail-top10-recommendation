@@ -79,18 +79,20 @@ def build_signed_ledger(raw: pd.DataFrame, stock_policy="frozen") -> pd.DataFram
     return _signed_lines(frame, decisions)
 
 
-def _region(country):
+def _region(country, uk_hours=72):
     """Map the C document's destination to its continuous elapsed-time threshold."""
     if pd.isna(country) or country in ("", "Unspecified"):
         return "unknown", None
     if country == "United Kingdom":
-        return "UK", 72
+        return "UK", uk_hours
     if country in EUROPE_COUNTRIES:
         return "Europe", 120
     return "ROW", 240
 
 
-def match_reversals(ledger: pd.DataFrame, *, use_balance=True, include_same_time=True) -> pd.DataFrame:
+def match_reversals(
+    ledger: pd.DataFrame, *, use_balance=True, include_same_time=True, uk_hours=72,
+) -> pd.DataFrame:
     """Match each C once to the nearest eligible single positive line.
 
     Work in credit timestamp and worksheet-row order. A sale must have the
@@ -98,11 +100,14 @@ def match_reversals(ledger: pd.DataFrame, *, use_balance=True, include_same_time
     one row. Price is evidence but is not a matching condition. At the nearest
     eligible purchase time, ascending ExcelRow prefers rows before the C and
     then the smallest row. Inclusive matching allows an equal-time row appearing
-    later on the sheet. Every match consumes balance in the primary policy,
-    including a return or a match lacking usable country evidence. Only a
-    classified cancellation reduces effective purchase history, when its C
-    record has become observable.
+    later on the sheet. Every match reserves units on its source line. The
+    regional time threshold labels the match for operational reporting. A
+    net-retained snapshot deducts linked units once the credit is observable,
+    including returns and matches with an unknown destination. For sensitivity
+    checks, uk_hours changes the UK reporting threshold alone (whole hours).
     """
+    if not isinstance(uk_hours, (int, np.integer)) or uk_hours < 0:
+        raise ValueError("uk_hours must be a nonnegative whole number of hours.")
     credits = ledger.loc[ledger["ledger_type"].eq("credit")].sort_values(["InvoiceDate", "ExcelRow"])
     keys = ["CustomerID", "StockCode"]
     relevant = credits[keys].dropna().drop_duplicates()
@@ -117,7 +122,7 @@ def match_reversals(ledger: pd.DataFrame, *, use_balance=True, include_same_time
     for credit in credits.itertuples(index=False):
         customer, sku = credit.CustomerID, credit.StockCode
         units = -credit.Quantity
-        region, hours = _region(credit.Country)
+        region, hours = _region(credit.Country, uk_hours=uk_hours)
         record = {
             "credit_excel_row": credit.ExcelRow, "credit_invoice_no": credit.InvoiceNo,
             "credit_time": credit.InvoiceDate, "CustomerID": customer, "StockCode": sku,
@@ -176,7 +181,12 @@ def match_reversals(ledger: pd.DataFrame, *, use_balance=True, include_same_time
 
 
 def _scenario_summary(scenario, ledger, matches, use_balance):
-    """Reconcile signed amounts at the prices recorded on each source document."""
+    """Reconcile signed documents and sale-price valuations over the full period.
+
+    Gross after cancellations measures sales before returns. Net-retained units
+    deduct every allocated credit from its source sale. Signed view A/B instead
+    sums each document at its own recorded price, including unlinked credits.
+    """
     rows = []
 
     def record(metric, frame, units="Quantity", money="signed_amount_gbp"):
@@ -198,15 +208,19 @@ def _scenario_summary(scenario, ledger, matches, use_balance):
         selected = statuses.loc[statuses["status"].eq(status)]
         record(status, selected, units="signed_units", money="credit_amount_gbp")
     if use_balance:
-        cancelled = matches.loc[matches["status"].eq("cancellation")]
-        cancelled_units = cancelled.groupby("purchase_excel_row")["credited_units"].sum()
-        goods = sales.copy()
-        goods["effective_units"] = goods["Quantity"] - goods["ExcelRow"].map(cancelled_units).fillna(0)
-        goods = goods.loc[goods["effective_units"].gt(0)].copy()
-        goods["effective_amount_gbp"] = goods["effective_units"] * goods["UnitPrice"]
-        record("gross_after_cancellations", goods, "effective_units", "effective_amount_gbp")
-        record("known_gross_after_cancellations", goods.loc[goods["CustomerID"].notna()],
-               "effective_units", "effective_amount_gbp")
+        linked = matches.loc[matches["purchase_excel_row"].notna()]
+        deductions = {
+            "gross_after_cancellations": linked.loc[linked["status"].eq("cancellation")],
+            "net_retained_at_sale_prices": linked,
+        }
+        for metric, credits in deductions.items():
+            allocated = credits.groupby("purchase_excel_row")["credited_units"].sum()
+            quantity = sales["Quantity"] - sales["ExcelRow"].map(allocated).fillna(0)
+            goods = sales.loc[quantity.gt(0)].assign(effective_units=quantity)
+            goods["effective_amount_gbp"] = goods["effective_units"] * goods["UnitPrice"]
+            record(metric, goods, "effective_units", "effective_amount_gbp")
+            record("known_" + metric, goods.loc[goods["CustomerID"].notna()],
+                   "effective_units", "effective_amount_gbp")
     return pd.DataFrame(rows)
 
 

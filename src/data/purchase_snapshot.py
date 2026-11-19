@@ -7,19 +7,20 @@ from src.data.clean import RAW_COLUMNS
 
 
 def purchase_line_balances(ledger, allocations, *, cutoff=None):
-    """Return all identified positive source lines in completed baskets, including fully cancelled ones.
+    """Return all identified positive source lines in completed baskets, including fully credited ones.
 
     Both inputs must use canonical allocation results and Excel worksheet row
     identifiers. For historical replay, pass a cutoff. Only baskets completed
-    and credit classifications effective strictly before that timestamp enter.
+    and credits observed strictly before that timestamp enter.
     None requests a full-workbook retrospective view. The immutable invoice
-    completion is computed before subtracting any matched cancellations.
+    completion is computed before subtracting any matched credits. Allocation to
+    the source line determines the deduction. Elapsed-time classes describe it.
     """
     sale = ledger["ledger_type"].eq("sale") & ledger["CustomerID"].notna()
     lines = ledger.loc[sale, ["ExcelRow", *RAW_COLUMNS]].copy()
     lines["InvoiceDate"] = pd.to_datetime(lines["InvoiceDate"], format="mixed")
     lines["basket_time"] = lines.groupby(INVOICE_KEYS, sort=False)["InvoiceDate"].transform("max")
-    effective = allocations.loc[allocations["status"].isin(["cancellation", "return"])]
+    effective = allocations.loc[allocations["purchase_excel_row"].notna()]
     if cutoff is not None:
         end = pd.Timestamp(cutoff)
         lines = lines.loc[lines["basket_time"].lt(end)].copy()
@@ -33,26 +34,51 @@ def purchase_line_balances(ledger, allocations, *, cutoff=None):
             .groupby("purchase_excel_row")["credited_units"].sum()
         )
         lines[column] = lines["ExcelRow"].map(totals).fillna(0).astype("int64")
-    if (lines["cancelled_units"] + lines["returned_units"] > lines["original_quantity"]).any():
+    matched = effective.groupby("purchase_excel_row")["credited_units"].sum()
+    lines["matched_credit_units"] = lines["ExcelRow"].map(matched).fillna(0).astype("int64")
+    lines["other_matched_units"] = lines["matched_credit_units"] - lines["cancelled_units"] - lines["returned_units"]
+    lines["Quantity"] = lines["original_quantity"] - lines["matched_credit_units"]
+    if lines["Quantity"].lt(0).any():
         raise ValueError("Matched credit units exceed the original quantity on a sale line.")
-    lines["Quantity"] = lines["original_quantity"] - lines["cancelled_units"]
+    components = {"cancelled_units": "cancellation", "returned_units": "return", "other_matched_units": "other"}
+    lines["matched_credit_composition"] = "none"
+    for col, label in components.items():
+        lines.loc[lines[col].gt(0), "matched_credit_composition"] = label
+    mixed = lines[list(components)].gt(0).sum(axis=1).gt(1)
+    lines.loc[mixed, "matched_credit_composition"] = "mixed"
     lines["line_amount_gbp"] = lines["Quantity"] * lines["UnitPrice"]
     return lines.sort_values("ExcelRow", ignore_index=True)
 
 
 def purchase_snapshot(ledger, allocations, *, cutoff=None):
-    """Return surviving positive purchase lines and corresponding basket-item events."""
+    """Return net-positive lines and their invoice-item events at the exclusive cutoff."""
     balances = purchase_line_balances(ledger, allocations, cutoff=cutoff)
     purchases = balances.loc[balances["Quantity"].gt(0)].copy()
     return purchases, build_basket_events(purchases)
+
+
+def net_retained_labels(ledger, allocations, *, target_start, target_end):
+    """Distinct customer/SKU positives in [target_start, target_end), replayed as of target_end.
+
+    Purchase time is the original basket completion. A later observed credit
+    cannot rewrite an earlier target window. Cohort eligibility and catalog
+    intersection remain separate query-construction decisions.
+    """
+    start, end = pd.Timestamp(target_start), pd.Timestamp(target_end)
+    if start >= end:
+        raise ValueError("The target window must end after it starts.")
+    _, events = purchase_snapshot(ledger, allocations, cutoff=end)
+    keys = ["CustomerID", "StockCode"]
+    return (events.loc[events["basket_time"].ge(start), keys].drop_duplicates()
+            .sort_values(keys, ignore_index=True))
 
 
 def snapshot_decisions(raw, gross_steps, gross_decisions, ledger, allocations, balances):
     """Assign every source row one retrospective disposition for the recommendation table.
 
     Preserve the original pre-credit eligibility decision separately. Units on a
-    positive source row distinguish full/partial cancellations from operational
-    returns, including the case where different credits touch the same sale.
+    positive source row distinguish full/partial credits from unaffected lines.
+    Composition preserves the operational classes, including mixed cases.
     Ledger membership describes a separate signed-accounting view.
     """
     frame = raw.set_index("ExcelRow")
@@ -73,10 +99,9 @@ def snapshot_decisions(raw, gross_steps, gross_decisions, ledger, allocations, b
     first.loc[credit_status.notna()] = "credit_" + credit_status.dropna().astype("string")
     sale = balances.set_index("ExcelRow")
     first.loc[sale.index] = "retained"
-    first.loc[sale.index[sale["returned_units"].gt(0)]] = "sale_with_return"
-    first.loc[sale.index[sale["cancelled_units"].gt(0)]] = "sale_partially_cancelled"
-    first.loc[sale.index[sale["Quantity"].eq(0)]] = "sale_fully_cancelled"
-    kept_rules = ["retained", "sale_partially_cancelled", "sale_with_return"]
+    first.loc[sale.index[sale["matched_credit_units"].gt(0)]] = "sale_partially_credited"
+    first.loc[sale.index[sale["Quantity"].eq(0)]] = "sale_fully_credited"
+    kept_rules = ["retained", "sale_partially_credited"]
     retained_ids = first.index[first.isin(kept_rules)].sort_values()
     if not retained_ids.equals(sale.index[sale["Quantity"].gt(0)].sort_values()):
         raise ValueError("Source decisions and the signed-ledger purchase snapshot disagree.")
@@ -85,7 +110,9 @@ def snapshot_decisions(raw, gross_steps, gross_decisions, ledger, allocations, b
     decisions["in_signed_ledger_a"] = signed.notna()
     decisions["in_signed_ledger_b"] = signed.notna() & frame["CustomerID"].notna()
     decisions["credit_status"] = credit_status
-    for col in ("original_quantity", "cancelled_units", "returned_units", "Quantity"):
+    decisions["matched_purchase_excel_row"] = allocations.set_index("credit_excel_row")["purchase_excel_row"].reindex(first.index).astype("Int64")
+    decisions["matched_credit_composition"] = sale["matched_credit_composition"].reindex(first.index)
+    for col in ("original_quantity", "cancelled_units", "returned_units", "other_matched_units", "matched_credit_units", "Quantity"):
         name = "retained_quantity" if col == "Quantity" else col
         decisions[name] = sale[col].reindex(first.index).astype("Int64")
 
@@ -121,14 +148,14 @@ def snapshot_decisions(raw, gross_steps, gross_decisions, ledger, allocations, b
     credit_reasons = {
         "cancellation": ("Deduct linked units from the original sale at its original unit price.",
                          "在原正单上按原单价扣减匹配的取消数量。"),
-        "return": ("Keep the linked purchase and record the operational return in the signed ledger.",
-                   "保留原购买事件，在带符号账表记录按时限判定的退货。"),
+        "return": ("Deduct linked units at the original sale price. Preserve the return-proxy classification for analysis.",
+                   "按原正单单价扣减已匹配件数，保留按时限判定的退货标记以供分析。"),
         "unmatched": ("Keep the signed credit; there is no supported purchase link.",
                       "保留带符号贷项，缺乏可核实的原单链接。"),
         "anonymous": ("Keep the anonymous credit in view A; a customer link is unavailable.",
                       "匿名贷项进入整体视图 A，无法关联客户。"),
-        "unknown_region": ("Keep the credit separately because its region has no timing threshold.",
-                           "地区不明的贷项单独保留，无法应用地区时限。"),
+        "unknown_region": ("The region has no timing threshold. Deduct any units with a confirmed source-line allocation.",
+                           "地区不明时保留单独的分析类别；已匹配到具体正单的件数仍予扣减。"),
     }
     for label, (en, zh) in credit_reasons.items():
         rule = "credit_" + label
@@ -142,13 +169,10 @@ def snapshot_decisions(raw, gross_steps, gross_decisions, ledger, allocations, b
                 "This C line falls outside the cleaned merchandise ledger.",
                 "该 C 明细未进入清洗后的商品贷项账表。")
     sources = "credit_allocations, reversal_examples"
-    add("sale_fully_cancelled", "exclude", sale["Quantity"].eq(0).sum(), sources,
-        "No purchased units remain after the matched cancellation credits.", "原正单的商品件数已被匹配取消贷项全部冲减。")
-    add("sale_partially_cancelled", "adjust", (sale["cancelled_units"].gt(0) & sale["Quantity"].gt(0)).sum(), sources,
-        "Retain the remaining units at the original sale price.", "仅保留剩余购买件数与其按原单价计算的金额。")
-    add("sale_with_return", "retain", sale["returned_units"].gt(0).sum(), sources,
-        "Operational returns preserve purchased units; any cancellations are accounted for separately.",
-        "按业务规则认定的退货保留原购买件数；取消数量另行处理。")
+    add("sale_fully_credited", "exclude", sale["Quantity"].eq(0).sum(), sources,
+        "All units on the original sale line have matching credits.", "原正单行的件数已被匹配贷项全部冲减。")
+    add("sale_partially_credited", "adjust", (sale["matched_credit_units"].gt(0) & sale["Quantity"].gt(0)).sum(), sources,
+        "Retain the net positive units at the original sale price.", "保留贷项冲减后剩余的正件数，按原单价计额。")
     add("retained", "retain", counts.get("retained", 0), "ledger_summary",
         "Keep the original positive merchandise purchase.", "保留原始正向商品购买。")
     audit = pd.DataFrame.from_records(rows)

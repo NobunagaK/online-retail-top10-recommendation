@@ -13,7 +13,7 @@ from src.data.baskets import build_basket_events
 from src.data.clean import RAW_COLUMNS, WORKBOOK_SHA256, audit_transactions, read_workbook
 from src.data.merchandise import merchandise_rules
 from src.data.purchase_cleaning import clean_purchase_lines
-from src.data.purchase_snapshot import purchase_line_balances, purchase_snapshot, snapshot_decisions
+from src.data.purchase_snapshot import purchase_line_balances, snapshot_decisions
 from src.data.reversals import compute_reversal_tables
 
 
@@ -33,6 +33,25 @@ def snapshot_counts(purchases, events):
     }
 
 
+def credit_adjustment_counts(balances):
+    """Summarize assigned units from the complete set of source sales, including zero balances."""
+    matched = balances["matched_credit_units"]
+    affected = matched.gt(0)
+    removed = balances["Quantity"].eq(0)
+    matched_amount = (matched * balances["UnitPrice"]).sum()
+    return {
+        "gross_positive_lines_before_credits": len(balances),
+        "fully_credited_sale_lines": int(removed.sum()),
+        "partially_credited_sale_lines": int((affected & ~removed).sum()),
+        "mixed_credit_sale_lines": int(balances["matched_credit_composition"].eq("mixed").sum()),
+        "matched_credit_units": int(matched.sum()),
+        "cancelled_units": int(balances["cancelled_units"].sum()),
+        "returned_units": int(balances["returned_units"].sum()),
+        "other_matched_units": int(balances["other_matched_units"].sum()),
+        "matched_amount_at_sale_prices_gbp": float(format(matched_amount, ".15g")),
+    }
+
+
 def build_cleaning_outputs(raw, reversal_tables=None):
     """Build all D1 CSV tables in memory, keyed by relative output path, plus the manifest."""
     baseline = audit_transactions(raw)
@@ -45,7 +64,9 @@ def build_cleaning_outputs(raw, reversal_tables=None):
     steps, decisions = snapshot_decisions(
         raw, gross_steps, gross_decisions, ledger, allocations, balances,
     )
-    train_lines, train_events = purchase_snapshot(ledger, allocations, cutoff=TRAINING_CUTOFF)
+    training_balances = purchase_line_balances(ledger, allocations, cutoff=TRAINING_CUTOFF)
+    train_lines = training_balances.loc[training_balances["Quantity"].gt(0)].copy()
+    train_events = build_basket_events(train_lines)
     frames = {
         BASELINE_PATH: baseline,
         "results/cleaning_steps.csv": steps,
@@ -73,22 +94,21 @@ def build_cleaning_outputs(raw, reversal_tables=None):
         "merchandise_evidence_period": {"start": "2010-12-01", "end_exclusive": TRAINING_CUTOFF},
         "counts": {
             "after_five_rules": int(baseline.iloc[-1]["rows_after"]),
-            "gross_positive_lines_before_credits": len(balances),
             "removed_total": int(steps["rows_removed"].sum()),
-            "fully_cancelled_sale_lines": int(balances["Quantity"].eq(0).sum()),
-            "partially_cancelled_sale_lines": int((balances["cancelled_units"].gt(0) & balances["Quantity"].gt(0)).sum()),
-            "cancelled_units": int(balances["cancelled_units"].sum()),
-            "cancellation_amount_at_sale_prices_gbp": float(format((balances["cancelled_units"] * balances["UnitPrice"]).sum(), ".15g")),
+            **credit_adjustment_counts(balances),
             **snapshot_counts(purchases, events),
         },
         "training_snapshot": {
             "start_inclusive": "2010-12-01", "end_exclusive": TRAINING_CUTOFF,
-            "credit_time_end_exclusive": TRAINING_CUTOFF, **snapshot_counts(train_lines, train_events),
+            "credit_time_end_exclusive": TRAINING_CUTOFF, **credit_adjustment_counts(training_balances),
+            **snapshot_counts(train_lines, train_events),
         },
         "event_key": ["CustomerID", "InvoiceNo", "StockCode"],
         "basket_time": "Latest original positive eligible merchandise line timestamp on the customer invoice, fixed before credit adjustments.",
-        "scope": "Full exports are retrospective. Training exports replay only baskets and credits strictly before 2011-10-01. For any earlier or target cutoff use purchase_snapshot on the signed ledger and canonical allocations.",
-        "amounts": "Recommendation lines use surviving units at original sale prices. Signed A/B ledgers retain each original sale/credit quantity and actual price. Do not subtract matched cancellations again from ledger net amounts.",
+        "recommendation_quantity_policy": "net_retained_all_matched_credits_v1",
+        "scope": "Full exports are retrospective. Training exports replay completed baskets and all linked credits strictly before 2011-10-01. Replay history at its exclusive cutoff with purchase_snapshot. Use net_retained_labels at target end for distinct customer/SKU positives before D2 eligibility.",
+        "model_inputs": "Build all four primary models from positive net-retained basket events. Regional credit classes, component quantities and composition fields on source lines are for audit only.",
+        "amounts": "Net-retained merchandise uses original sale prices and all linked credit units. Cancellation-only gross accounting is separate. Signed A/B net accounting uses each recorded sale and actual credit price once. No payment or physical retention is observed.",
     }
     return frames, manifest
 

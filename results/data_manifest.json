@@ -24,31 +24,44 @@
   },
   "counts": {
     "after_five_rules": 392692,
+    "removed_total": 153433,
     "gross_positive_lines_before_credits": 391060,
-    "removed_total": 151741,
-    "fully_cancelled_sale_lines": 892,
-    "partially_cancelled_sale_lines": 568,
+    "fully_credited_sale_lines": 2584,
+    "partially_credited_sale_lines": 4540,
+    "mixed_credit_sale_lines": 27,
+    "matched_credit_units": 247701,
     "cancelled_units": 189315,
-    "cancellation_amount_at_sale_prices_gbp": 349595.9,
-    "paid_merchandise_lines": 390168,
-    "basket_item_events": 385352,
-    "baskets": 18331,
-    "customers": 4330,
-    "stock_codes": 3656,
-    "paid_units": 4952379,
-    "recorded_amount_gbp": 8386326.743
+    "returned_units": 58386,
+    "other_matched_units": 0,
+    "matched_amount_at_sale_prices_gbp": 483065.64,
+    "paid_merchandise_lines": 388476,
+    "basket_item_events": 383669,
+    "baskets": 18280,
+    "customers": 4323,
+    "stock_codes": 3644,
+    "paid_units": 4893993,
+    "recorded_amount_gbp": 8252857.003
   },
   "training_snapshot": {
     "start_inclusive": "2010-12-01",
     "end_exclusive": "2011-10-01",
     "credit_time_end_exclusive": "2011-10-01",
-    "paid_merchandise_lines": 262067,
-    "basket_item_events": 259676,
-    "baskets": 13040,
-    "customers": 3612,
-    "stock_codes": 3499,
-    "paid_units": 3514634,
-    "recorded_amount_gbp": 5935091.803
+    "gross_positive_lines_before_credits": 262597,
+    "fully_credited_sale_lines": 1678,
+    "partially_credited_sale_lines": 3245,
+    "mixed_credit_sale_lines": 16,
+    "matched_credit_units": 131911,
+    "cancelled_units": 89561,
+    "returned_units": 42350,
+    "other_matched_units": 0,
+    "matched_amount_at_sale_prices_gbp": 248493.77,
+    "paid_merchandise_lines": 260919,
+    "basket_item_events": 258532,
+    "baskets": 13001,
+    "customers": 3608,
+    "stock_codes": 3495,
+    "paid_units": 3472284,
+    "recorded_amount_gbp": 5837037.733
   },
   "event_key": [
     "CustomerID",
@@ -56,16 +69,18 @@
     "StockCode"
   ],
   "basket_time": "Latest original positive eligible merchandise line timestamp on the customer invoice, fixed before credit adjustments.",
-  "scope": "Full exports are retrospective. Training exports replay only baskets and credits strictly before 2011-10-01. For any earlier or target cutoff use purchase_snapshot on the signed ledger and canonical allocations.",
-  "amounts": "Recommendation lines use surviving units at original sale prices. Signed A/B ledgers retain each original sale/credit quantity and actual price. Do not subtract matched cancellations again from ledger net amounts.",
+  "recommendation_quantity_policy": "net_retained_all_matched_credits_v1",
+  "scope": "Full exports are retrospective. Training exports replay completed baskets and all linked credits strictly before 2011-10-01. Replay history at its exclusive cutoff with purchase_snapshot. Use net_retained_labels at target end for distinct customer/SKU positives before D2 eligibility.",
+  "model_inputs": "Build all four primary models from positive net-retained basket events. Regional credit classes, component quantities and composition fields on source lines are for audit only.",
+  "amounts": "Net-retained merchandise uses original sale prices and all linked credit units. Cancellation-only gross accounting is separate. Signed A/B net accounting uses each recorded sale and actual credit price once. No payment or physical retention is observed.",
   "outputs": {
     "results/cleaning_audit.csv": {
       "rows": 5,
       "sha256": "60b3431d9ece555ec2fd84bf3653d209760edd6d111565f9c0cadae5801a298d"
     },
     "results/cleaning_steps.csv": {
-      "rows": 44,
-      "sha256": "b70e25e23df77078de2cf21618da11e0ed5ac7cd02c15b6fcdf6fb2d6dfa22f7"
+      "rows": 43,
+      "sha256": "982bfade226cf4d93d43fc7a9dd3237fa6103d8f41b3bd0579d66f7e4293794b"
     },
     "results/merchandise_rules.csv": {
       "rows": 38,
@@ -73,23 +88,23 @@
     },
     "data/processed/row_decisions.csv.gz": {
       "rows": 541909,
-      "sha256": "3eb6325809e6296e4a8a0daacf41b6be8ff7ebd665f4e6455c93d8537fdf8ce8"
+      "sha256": "67e5ece74ab00d390baaf956cd9450a956d098b5480b55a5b52ed2d5b43ac3b0"
     },
     "data/processed/purchase_lines.csv.gz": {
-      "rows": 390168,
-      "sha256": "5ba85260701d1973e4f198fb1fe2768d75a273d11a9741ad159441ef8c8a11fd"
+      "rows": 388476,
+      "sha256": "8d4e107ec01eeb456f6d5d8afc442c1ee3a1d81862c6fe45b5097718cacdcce1"
     },
     "data/processed/basket_events.csv.gz": {
-      "rows": 385352,
-      "sha256": "6f799d70f60ab29b754bc227419ef5d45246f5423e41f37553445bf3b0673192"
+      "rows": 383669,
+      "sha256": "908ddc93fd4a42328766711235286837a0eaca5c54ea9a0987a8696f4dbaf140"
     },
     "data/processed/training_purchase_lines.csv.gz": {
-      "rows": 262067,
-      "sha256": "11e1450e297650fb23354603ba1ffe7b6b06d4c25a9d6a736d97f0153f9665a0"
+      "rows": 260919,
+      "sha256": "b2911c70f947f1d3c78e119a9f1f731fc0e3b5e2f31040a3471a810c180eb37f"
     },
     "data/processed/training_basket_events.csv.gz": {
-      "rows": 259676,
-      "sha256": "e5c9930ced435eff8ccb7b0cd6caca3ede4bf714fa082d3b19fc201aefdf69be"
+      "rows": 258532,
+      "sha256": "deae60d9314a35753efaa4582f179ef8740b5903eef4a5802ba11f55a1aed028"
     },
     "data/processed/signed_ledger_a.csv.gz": {
       "rows": 531112,
@@ -112,8 +127,8 @@
       "sha256": "6b79470194be27b85380c303c0e5770eed02ea6cf6cdc4fcc2306b72e1b40354"
     },
     "results/reversal_reconciliation.csv": {
-      "rows": 59,
-      "sha256": "4cfacc2aaaf1748358a54e7b298dccbb5a18bc04b7866c1d0147753a7e0654c1"
+      "rows": 63,
+      "sha256": "ee324e42d6702831dcdb33e3a495dc65758724c81256ee9e3b133a67cd61271d"
     },
     "results/reversal_region_summary.csv": {
       "rows": 60,

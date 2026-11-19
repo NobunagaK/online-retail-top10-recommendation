@@ -1,0 +1,10 @@
+target_month,split,standard_uk_hours,alternate_uk_hours,reclassified_in_full_workbook,reclassified_before_history_cutoff,reclassified_before_target_end,history_basket_item_events,distinct_net_positive_customer_skus_in_month,identical_sale_allocations,identical_history_keys_quantities_amounts_times,identical_month_end_labels_before_catalog_filter
+2011-02,training,72,120,608,85,118,45619,18632,True,True,True
+2011-03,training,72,120,608,118,166,64960,25155,True,True,True
+2011-04,training,72,120,608,166,204,91258,21197,True,True,True
+2011-05,training,72,120,608,204,281,113260,26182,True,True,True
+2011-06,training,72,120,608,281,352,140862,25189,True,True,True
+2011-07,training,72,120,608,352,403,167275,24602,True,True,True
+2011-08,training,72,120,608,403,443,193251,25062,True,True,True
+2011-09,training,72,120,608,443,480,219535,37001,True,True,True
+2011-10,validation,72,120,608,480,543,258532,43978,True,True,True

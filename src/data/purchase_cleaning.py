@@ -45,7 +45,7 @@ def clean_purchase_lines(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
     its first matches among survivors. The retained summary is the size of the
     final output. ExcelRow is the stable worksheet locator in both row tables.
     Credit lines are reviewed separately. Recommendation snapshots incorporate
-    classified cancellations observed before their exclusive as-of times.
+    all supported credit allocations observed before their exclusive as-of times.
     """
     if raw["ExcelRow"].isna().any() or not raw["ExcelRow"].is_unique:
         raise ValueError("ExcelRow must uniquely identify each row of the source worksheet.")

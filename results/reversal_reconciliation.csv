@@ -45,6 +45,8 @@ frozen_balance_strict,anonymous,162,-2306,-4150.45
 frozen_balance_strict,unknown_region,0,0,0.0
 frozen_balance_strict,gross_after_cancellations,521559,5372050,9896688.073
 frozen_balance_strict,known_gross_after_cancellations,390172,4952450,8386696.393
+frozen_balance_strict,net_retained_at_sale_prices,519865,5313611,9762859.783
+frozen_balance_strict,known_net_retained_at_sale_prices,388478,4894011,8252868.103
 frozen_balance_inclusive,view_a,531112,5291280,9770043.163
 frozen_balance_inclusive,view_b,399563,4873986,8264201.933
 frozen_balance_inclusive,guest,131549,417294,1505841.23
@@ -58,3 +60,5 @@ frozen_balance_inclusive,anonymous,162,-2306,-4150.45
 frozen_balance_inclusive,unknown_region,0,0,0.0
 frozen_balance_inclusive,gross_after_cancellations,521555,5371979,9896318.423
 frozen_balance_inclusive,known_gross_after_cancellations,390168,4952379,8386326.743
+frozen_balance_inclusive,net_retained_at_sale_prices,519863,5313593,9762848.683
+frozen_balance_inclusive,known_net_retained_at_sale_prices,388476,4893993,8252857.003

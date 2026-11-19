@@ -3,10 +3,10 @@ step,rule,action,raw_flagged,decision_rows,rows_before,rows_removed,rows_after,e
 2,bad_debt_document,exclude,3,3,536641,3,536638,"P_nonpositive, case_examples",A-prefixed bad-debt documents do not represent a merchandise sale or credit.,A 前缀的坏账调整单不计入商品销售或商品贷项。
 3,nonC_negative_inventory,exclude,1336,1336,536638,1336,535302,"Q_nonpositive, nonC_negative, note_summary",Treat non-C negative units as inventory write-offs; the observed rows are anonymous and zero-priced.,非 C 负数量行按库存核销处理；原表这些行均匿名且单价为零。
 4,credit_cancellation,exclude,1473,1473,535302,1473,533829,"credit_allocations, credit_summary",Deduct linked units from the original sale at its original unit price.,在原正单上按原单价扣减匹配的取消数量。
-5,credit_return,exclude,5883,5883,533829,5883,527946,"credit_allocations, credit_summary",Keep the linked purchase and record the operational return in the signed ledger.,保留原购买事件，在带符号账表记录按时限判定的退货。
+5,credit_return,exclude,5883,5883,533829,5883,527946,"credit_allocations, credit_summary",Deduct linked units at the original sale price. Preserve the return-proxy classification for analysis.,按原正单单价扣减已匹配件数，保留按时限判定的退货标记以供分析。
 6,credit_unmatched,exclude,1147,1147,527946,1147,526799,"credit_allocations, credit_summary",Keep the signed credit; there is no supported purchase link.,保留带符号贷项，缺乏可核实的原单链接。
 7,credit_anonymous,exclude,162,162,526799,162,526637,"credit_allocations, credit_summary",Keep the anonymous credit in view A; a customer link is unavailable.,匿名贷项进入整体视图 A，无法关联客户。
-8,credit_unknown_region,exclude,0,0,526637,0,526637,"credit_allocations, credit_summary",Keep the credit separately because its region has no timing threshold.,地区不明的贷项单独保留，无法应用地区时限。
+8,credit_unknown_region,exclude,0,0,526637,0,526637,"credit_allocations, credit_summary",The region has no timing threshold. Deduct any units with a confirmed source-line allocation.,地区不明时保留单独的分析类别；已匹配到具体正单的件数仍予扣减。
 9,missing_customer_id,exclude,135080,133536,526637,133536,393101,"missingness, customer_id_invoices, filter_attribution",An anonymous line cannot be assigned to a customer's history. The source audit retains these lines.,匿名交易无法归入具体客户的历史，原始审计仍涵盖这些行。
 10,missing_invoice_no,exclude,0,0,393101,0,393101,missingness,An invoice identifier is required to construct a basket.,缺少发票编号，无法构造购物篮。
 11,missing_stock_code,exclude,0,0,393101,0,393101,missingness,An item identifier is required to assign a product.,缺少商品编码，无法确定商品。
@@ -39,7 +39,6 @@ step,rule,action,raw_flagged,decision_rows,rows_before,rows_removed,rows_after,e
 38,non_merchandise_gift_0001_30,exclude,8,0,391060,0,391060,"merchandise_rules.csv, P_nonpositive",The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
 39,non_merchandise_gift_0001_40,exclude,3,0,391060,0,391060,merchandise_rules.csv,The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
 40,non_merchandise_gift_0001_50,exclude,4,0,391060,0,391060,merchandise_rules.csv,The denomination identifies prepaid store credit. This project ranks merchandise.,面额对应店铺预付购物额度；本项目的推荐对象是商品。
-41,sale_fully_cancelled,exclude,892,892,391060,892,390168,"credit_allocations, reversal_examples",No purchased units remain after the matched cancellation credits.,原正单的商品件数已被匹配取消贷项全部冲减。
-42,sale_partially_cancelled,adjust,568,568,390168,0,390168,"credit_allocations, reversal_examples",Retain the remaining units at the original sale price.,仅保留剩余购买件数与其按原单价计算的金额。
-43,sale_with_return,retain,5691,5664,390168,0,390168,"credit_allocations, reversal_examples",Operational returns preserve purchased units; any cancellations are accounted for separately.,按业务规则认定的退货保留原购买件数；取消数量另行处理。
-44,retained,retain,383936,383936,390168,0,390168,ledger_summary,Keep the original positive merchandise purchase.,保留原始正向商品购买。
+41,sale_fully_credited,exclude,2584,2584,391060,2584,388476,"credit_allocations, reversal_examples",All units on the original sale line have matching credits.,原正单行的件数已被匹配贷项全部冲减。
+42,sale_partially_credited,adjust,4540,4540,388476,0,388476,"credit_allocations, reversal_examples",Retain the net positive units at the original sale price.,保留贷项冲减后剩余的正件数，按原单价计额。
+43,retained,retain,383936,383936,388476,0,388476,ledger_summary,Keep the original positive merchandise purchase.,保留原始正向商品购买。

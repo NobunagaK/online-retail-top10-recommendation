@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+from src.data import reversals
 from src.data.reversals import (
     EUROPE_COUNTRIES, build_signed_ledger, compute_reversal_tables, match_reversals,
 )
@@ -96,3 +97,32 @@ def test_empty_credit_table_and_empty_input():
         assert t["credit_allocations"].empty
         assert t["match_differences"].empty
         assert t["benchmark"].shape[0] > 0
+
+
+def test_net_retained_units_follow_links_and_are_invariant_to_operational_threshold():
+    raw = pd.DataFrame([
+        entry(2, "2", 10), entry(3, "3", 5, sku="00101", price=4),
+        entry(4, "4", 1, customer=None, price=19),
+        entry(5, "C5", -2, date="2011-03-05", price=7),  # four days after sale 2
+        entry(6, "C6", -3, date="2011-03-09", price=1, country="Unspecified"),
+        entry(7, "C7", -5, date="2011-03-09", sku="00101", price=3),
+        entry(8, "C8", -7, date="2011-03-09", price=1),  # only 5 reversible units remain
+        entry(9, "C9", -1, date="2011-03-09", customer=None, price=1),
+    ])
+    ledger = build_signed_ledger(raw)
+    baseline = match_reversals(ledger)
+    alternate = match_reversals(ledger, uk_hours=120)
+    for matches in [baseline, alternate]:
+        result = reversals._scenario_summary("sensitivity", ledger, matches, use_balance=True).set_index("metric")
+        # All three matched credits count once. Sale 3 has no units left. Sale 2
+        # keeps (10 - 2 - 3) units at £2. The unlinked and anonymous C stay in A.
+        assert result.loc["known_net_retained_at_sale_prices", ["rows", "units", "signed_amount_gbp"]].tolist() == [1, 5, 10]
+        assert result.loc["net_retained_at_sale_prices", ["rows", "units", "signed_amount_gbp"]].tolist() == [2, 6, 29]
+        assert result.loc["view_b", "signed_amount_gbp"] == 1
+        assert result.loc["view_a", "signed_amount_gbp"] == 19
+    old = baseline.set_index("credit_excel_row")
+    new = alternate.set_index("credit_excel_row")
+    pd.testing.assert_series_equal(old.purchase_excel_row, new.purchase_excel_row)
+    assert old.loc[5, "status"] == "return" and new.loc[5, "status"] == "cancellation"
+    assert old.loc[6, "status"] == "unknown_region"
+    assert old.loc[8, "status"] == "unmatched" and old.loc[9, "status"] == "anonymous"
