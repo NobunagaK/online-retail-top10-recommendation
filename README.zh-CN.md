@@ -45,6 +45,6 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 
 ## 技术文档与 Canvas 提交材料
 
-项目自编文档分别提供英文版和中文版。可运行的技术文档按英文在前、中文在后排列说明，两种语言共用一份代码。[技术文档](docs/technical/transaction_records.ipynb)
+项目自编文档分别提供英文版和中文版。技术文档 notebook 的每个 Markdown 单元格先呈现完整的英文标题和正文，再呈现完整的中文标题和正文。两种语言共用同一份代码。[技术文档](docs/technical/transaction_records.ipynb)
 
 Canvas 提交包将包含技术报告、源代码、README，以及项目采用且课程允许提交的演示材料。按研究计划，可复用的数据处理、模型和评估逻辑写成 Python 模块，notebook 负责运行与解释。

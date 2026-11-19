@@ -45,6 +45,6 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 
 ## Technical documentation and Canvas submission
 
-Project-authored documents have English and Chinese editions. Executable technical references pair English and Chinese explanations around a shared code cell. [Technical reference](docs/technical/transaction_records.ipynb)
+Project-authored documents have English and Chinese editions. Each Markdown cell in a technical notebook presents the full English section followed by the full Chinese section. Both versions share the same code. [Technical reference](docs/technical/transaction_records.ipynb)
 
 The Canvas package will include the technical report, source code, README, and any permitted demonstration materials used. The plan places reusable data, model, and evaluation code in Python modules and uses notebooks to run and explain them.
