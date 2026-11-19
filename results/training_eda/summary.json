@@ -1,0 +1,38 @@
+{
+  "window": {
+    "field": "basket_time",
+    "start_inclusive": "2010-12-01T00:00:00",
+    "end_exclusive": "2011-10-01T00:00:00"
+  },
+  "input_sha256": {
+    "data/processed/basket_events.csv.gz": "606eb1f7d72dc080bb4f6d5f29fc7b1192aa9b270990298cc59a9eb3a559f525",
+    "data/processed/purchase_lines.csv.gz": "e766ba2f68d195d50525498237f6a29aa5bf13652e07d296d9ec89d9e71d71b9"
+  },
+  "source_lines": 262597,
+  "baskets": 13081,
+  "units": 3604195,
+  "recorded_amount_gbp": 6085531.503,
+  "customers": 3613,
+  "items": 3501,
+  "basket_item_events": 260199,
+  "observed_customer_item_pairs": 188368,
+  "possible_customer_item_pairs": 12649113,
+  "interaction_sparsity": 0.9851082048203696,
+  "repeat_purchase_events": 71824,
+  "repeat_event_share": 0.2760348809949308,
+  "repeated_customer_item_pairs": 38669,
+  "repeated_pair_share": 0.2052843370423851,
+  "head_items": 351,
+  "head_purchase_events": 121547,
+  "head_event_share": 0.4671309267137844,
+  "head_purchasing_customers": 3496,
+  "head_customer_reach_share": 0.9676169388319956,
+  "definitions": {
+    "repeat_event_share": "Basket-item events with an earlier completed basket for the same customer and SKU / all training basket-item events. Equal timestamps provide no earlier history.",
+    "repeated_pair_share": "Observed customer-SKU pairs with a strictly later purchase / all observed training customer-SKU pairs.",
+    "interaction_sparsity": "1 - observed distinct customer-SKU pairs / (active customers x observed SKUs).",
+    "head_items": "Ceiling of 10% of observed SKUs, ranked by distinct customers descending, then exact StockCode ascending.",
+    "head_event_share": "Events for head SKUs / all training events.",
+    "head_customer_reach_share": "Distinct customers with any head SKU / distinct active training customers."
+  }
+}

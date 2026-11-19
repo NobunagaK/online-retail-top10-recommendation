@@ -6,7 +6,7 @@
 
 给定客户在截止日前的购买历史，为指定的后续月份推荐 10 种商品。正式实验并列比较 **MF、LightGBM、LRURec 和 Mamba4Rec**。四个模型各自训练、独立给同一批客户和候选商品打分，都参加验证选模和最终测试。
 
-**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。第 2 节记录这些实测结果。完整 EDA、按月查询与标签、模型训练与评价仍待执行；模型的 Colab 兼容性、耗时和成绩以实际运行记录为准。
+**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。D1 训练期 EDA 覆盖 2010 年 12 月 1 日至 2011 年 9 月 30 日完成的正价商品购物篮，第 2 节记录实测结果。下一阶段 D2 将构建各截止点的历史、月度查询、候选与标签。模型的 Colab 兼容性、评估覆盖率、耗时和成绩仍待实际运行。
 
 [研究计划](#research) · [代码开发计划](#development) · [评分与提交清单](#submission) · [材料与来源](#sources)
 
@@ -44,7 +44,7 @@
 
 **四个模型共用的输入。** 四个模型都将从同一张购物篮事件表出发。后续构建每个月的查询时，先按整篮完成时间截取允许的历史，再派生各自的输入。MF 与 LightGBM 使用客户–商品交互和历史特征，包括购买过该商品的发票数、累计件数和最后购买时间。按发票计次可避免一次大额采购被当作多次偏好表达。LRURec 与 Mamba4Rec 共用一份按时间排序的商品 ID 序列，跨篮复购保留。词表、分位点和其他需拟合的转换均以该快照允许的历史为准。
 
-**待完成的 EDA。** 已有清洗漏斗和事件表。后续需在训练期统计交易量趋势、价格和数量分布、购物篮与历史长度、商品热度长尾、复购率与交互稀疏度。统计单价时从保留的明细取值，按对应购物篮的完成时间归入训练期。稀疏度按 `1 − 有交互的不同客户商品对数 / (客户数 × 商品数)` 计算并注明统计期间。原表完整性审计可覆盖全文件，特征设计与分组阈值从训练数据确定，测试期的业务分布在冻结后的解释阶段补齐。
+**D1 训练期探索性分析。** 按整篮完成时间取 `[2010-12-01, 2011-10-01)`，得到 262,597 条保留明细，聚合为 13,081 个购物篮中的 260,199 个购物篮–商品事件。3,613 位客户、3,501 种商品间共有 188,368 个不同的客户–商品对，交互稀疏度为 `1 − 188,368 / (3,613 × 3,501)` = 98.51%。分析涵盖交易量趋势、价格和数量分布、购物篮和历史长度、商品热度及复购。单价取自上述购物篮对应的购买明细。D2 中的特征和阈值应按各截止点当时可见的历史重新计算；测试期业务分布留到模型配置冻结后的解释阶段分析。[训练期 EDA notebook](../notebooks/training_eda.ipynb) · [结果表和图形](../results/training_eda/)
 
 ### 3. 时间切分、候选商品与标签
 
@@ -179,7 +179,7 @@ $$
 | 执行步骤 | 编码任务与拟建模块 | 完成标准与交给下一步的产物 |
 |---|---|---|
 | **D0**　入口与 GPU 环境 | 建 `README.md`、`configs/data.yaml`、Colab notebook 和锁文件。CPU 验证 Drive 输入，NVIDIA GPU 单独检验 Mamba 依赖和一次合成序列更新。 | 能读取原 Excel 并核对哈希。保存实际 GPU、PyTorch、CUDA、扩展版本和试训结果，开发数据协议可同步进行。 |
-| **D1**　清洗与 EDA | 已完成特殊交易核查、逐行清洗决定、商品规则与购物篮事件聚合。训练期 EDA 待完成。[清洗代码](../src/data/purchase_cleaning.py) · [聚合代码](../src/data/baskets.py) | 核对原始哈希、净减行数、同票同商品多行的件数与金额。已生成全期 391,060 行正价商品明细和 386,236 个购物篮商品事件。接下来完成第 2 节的训练期 EDA。D2 读取全期事件表，按各截止点构建历史，再从对应目标月生成标签。 |
+| **D1**　清洗与 EDA | 已完成特殊交易核查、逐行清洗决定、商品规则、购物篮事件聚合和训练期 EDA。[清洗代码](../src/data/purchase_cleaning.py) · [聚合代码](../src/data/baskets.py) | 核对原始哈希、净减行数、同票同商品多行的件数与金额。已生成全期 391,060 行正价商品明细和 386,236 个购物篮商品事件。其中 260,199 个事件位于训练窗口，见第 2 节。D2 将读取全期事件表，按各截止点构建历史，再从对应目标月生成标签。 |
 | **D2**　查询、共享序列与评价器 | `scripts/build_queries.py` 生成快照、候选、词表与隔离的标签。`src/data/sequences.py` 导出两种序列模型共用的变长历史。`src/evaluation/ranking.py` 实现 Top-10、两个主指标及第 5 节规定的抽样 ROC AUC。 | 手算指标通过。追加未来交易后训练快照不变。四个模型的查询与目录相同，两种序列模型移除填充后的商品与先后顺序逐条相同。 |
 | **D3**　MF 基线 | `src/models/mf.py`、`configs/mf.yaml`，实现嵌入、训练采样和独立评分。 | 小数据上 loss 有限、参数更新。从原始数据到验证 Top-10 完整运行，保存和加载后排名一致，留下一个已工作的模型接口示例。 |
 | **D4**　LightGBM | `src/features/asof.py`、`src/models/lightgbm_ranker.py`、`configs/lightgbm.yaml`，实现按历史截止点构造特征和排序组。 | 手工核对一个客户–商品对的频次和最近购买日期。检查组连续、组大小总和、正负例互斥、没有来自未来的特征，保存验证表现与特征字典。 |
@@ -192,14 +192,15 @@ D2 通过后，用 MF 检查从训练到验证的完整流程，再依次试训 
 
 ### 10. 已有运行入口与后续接口
 
-**已实现，可从仓库根目录在 CPU 上运行。** 两条命令都先核验原始工作簿。第一条生成筛选前的异常分析工作簿，第二条生成清洗审计、逐行决定、正价购买明细、购物篮事件和数据清单。[异常分析入口](../scripts/analyze_exceptions.py) · [清洗入口](../scripts/prepare_data.py)
+**从仓库根目录在 CPU 上运行。** 前两条命令先核验原始工作簿，分别生成筛选前的异常分析工作簿和 D1 清洗结果。第三条命令读取已生成的正价购买明细和购物篮事件，输出训练期 EDA 的表格和图形。[异常分析入口](../scripts/analyze_exceptions.py) · [清洗入口](../scripts/prepare_data.py) · [训练期 EDA 入口](../scripts/analyze_training.py)
 
 ```bash
 python -m scripts.analyze_exceptions --workbook "data/raw/Online Retail.xlsx" --output results/transaction_exceptions.xlsx
 python -m scripts.prepare_data --project-dir . --workbook "data/raw/Online Retail.xlsx" --output results/cleaning_audit.csv
+python -m scripts.analyze_training --project-dir .
 ```
 
-`prepare_data` 的 `--project-dir` 指定项目输出根目录，`--output` 只指定五步基线 CSV 的位置。使用仓库默认布局时，两条命令都可以省略参数。
+`prepare_data` 的 `--project-dir` 指定项目输出根目录，`--output` 只指定五步基线 CSV 的位置。对 `analyze_training`，`--project-dir` 指向包含两份 D1 输入及其数据清单的项目文件夹。使用仓库默认布局时，三条命令均可省略参数。
 
 **以下为 D2–D7 的拟开发接口。** 将在对应的 Colab 运行时执行。各会话共用同一代码版本、数据协议、Drive 项目根目录和实验标识。冻结清单与模型输出使用相对于同一 Drive 项目根目录的路径。
 
@@ -269,7 +270,7 @@ python -m scripts.make_report_tables --suite core
 
 | 评分项 | 权重 | 提交前必须能定位的证据 |
 |---|---:|---|
-| 数据探索与预处理 | 30% | 已有[异常证据工作簿](../results/transaction_exceptions.xlsx)、[逐步清洗审计](../results/cleaning_steps.csv)、[商品规则](../results/merchandise_rules.csv)及[主 notebook 的聚合核验](../notebooks/project2_colab.ipynb)。待补训练期 EDA、时间边界与历史约束的验证，以及 D2 的共享序列和月度标签，归入计划中的 `docs/data_protocol.md`。 |
+| 数据探索与预处理 | 30% | 已有[异常证据工作簿](../results/transaction_exceptions.xlsx)、[逐步清洗审计](../results/cleaning_steps.csv)、[商品规则](../results/merchandise_rules.csv)、[主 notebook 的聚合核验](../notebooks/project2_colab.ipynb)和[训练期 EDA 图表](../results/training_eda/)。D2 还需验证各截止点的时间边界、共享序列和月度标签，并归入计划中的 `docs/data_protocol.md`。 |
 | 模型定义 | 10% | 说明 MF、LightGBM、LRURec 和 Mamba4Rec 的输入与评分方式。列出 LightGBM 分组／标签／特征／负例，分别标明两种序列模型保留的官方模块和改动。 |
 | 模型训练 | 10% | 四套独立训练记录含随机种子、Colab 环境、耗时、早停、采样和截断配置，能定位权重或原生模型。 |
 | 超参数调优 | 10% | `results/tuning.csv` 含尝试配置、验证两指标、早停轮次、预算和选择标准。 |
@@ -284,9 +285,9 @@ python -m scripts.make_report_tables --suite core
 - [ ] **5 分钟课堂展示。** 建议 35 秒交代任务、数据及四个模型，65 秒讲清洗与时间切分，55 秒用一图解释四种打分方法，105 秒展示共同指标、两种序列模型的差异和一个具体失误，40 秒说明结论与改进。合计 300 秒。
 - [ ] **核对四模型实验。** 主结果表各有 MF、LightGBM、LRURec、Mamba4Rec 一行，四行样本与候选哈希相同。给出验证选模依据、测试 NDCG@10、Recall@10、补充的抽样 ROC AUC、各模型耗时和相同客户的推荐例子。
 
-### 15. 下一项开发任务 · 训练期 EDA 与 D2
+### 15. 下一项开发任务 · D2 查询、标签与评价
 
-先核对[数据清单](../results/data_manifest.json)，读取已生成的[购物篮事件](../data/processed/basket_events.csv.gz)。按 `basket_time` 取 `[2010-12-01, 2011-10-01)` 完成训练期 EDA，记录交易量、购物篮和历史长度、商品热度、复购及交互稀疏度。再依第 3 节实现 D2，为 MF、LightGBM、LRURec、Mamba4Rec 生成共用的月度查询、截止点目录、正标签、变长历史，以及 MF 与 LightGBM 的训练负例。十月验证和十一月测试共用十月一日之前的历史。
+用 D1 数据清单识别数据版本，用训练期 EDA 核对十月截止点的覆盖情况。依第 3 节从全期购物篮事件表实现 D2，按各截止点重建可用历史，为 MF、LightGBM、LRURec、Mamba4Rec 生成共用的月度查询、截止点目录、正标签、变长历史，以及 MF 与 LightGBM 的训练负例。十月验证和十一月测试共用十月一日之前的历史。
 
 实现第 5 节的统一评价器，用合成数据核验 Recall@10、NDCG@10、固定抽样和查询宏平均 ROC AUC（含同分和单一类别），覆盖单历史多正例、复购及未来信息隔离。按第 7 节并行推进 D0 的 Colab NVIDIA GPU 兼容性核验；在 D5b 真实试训前记录实际通过的 Mamba 环境与一次合成序列参数更新。每个入口标明复现步骤、已运行或待验状态与输出路径。
 

@@ -28,6 +28,22 @@ Use `--workbook` to select a different path to the original workbook and `--proj
 
 **Using the cleaned data.** Each row of `purchase_lines.csv.gz` is one retained, positively priced purchase line. Each row of `basket_events.csv.gz` is one distinct product in one customer's invoice. The event sums quantities and line amounts (quantity × unit price) and uses the basket's completion time, the latest retained line timestamp on the invoice for that customer. The full workbook yields **386,236 events** in **18,402 baskets** for **4,334 customers** and **3,658 SKUs**. The basket events supply the common purchase history for MF, LightGBM, LRURec and Mamba4Rec. Training and evaluation are later stages.
 
+### D1 · Explore training-period purchases
+
+Open the training EDA notebook in Colab on CPU. Run the cells in order, using the two D1 files in `data/processed/` and their checksums in `results/data_manifest.json`, or the notebook’s verified copies. To reproduce the same analysis locally, run the command below from the repository root. Use `--project-dir` if your processed inputs are in another project folder. The command writes tables and figures to `results/training_eda/` in that folder. [Training EDA notebook](notebooks/training_eda.ipynb) · [Local command](scripts/analyze_training.py)
+
+```bash
+python -m scripts.analyze_training
+```
+
+**Scope.** Include paid merchandise baskets completed on or after 1 December 2010 and before 1 October 2011. Select source lines by membership in those same baskets. This window contains **262,597 purchase lines, 260,199 basket–item events, and 13,081 baskets**. October validation and November test activity are outside the window.
+
+**How to read the outputs.**
+
+1. Start with the monthly table to track customers, baskets, events, units, and amount in GBP. One customer can be active in several months, so summing monthly customer counts double-counts returning customers. [Monthly activity](results/training_eda/monthly_activity.csv) · [Monthly volume figure](results/training_eda/monthly_volume.png)
+2. Check the unit of observation before comparing distributions. Unit price and purchased quantity are properties of a line, basket size counts distinct SKUs in an invoice, and customer history length counts basket–item events. The median paid unit price is £1.95, median basket size is 15 SKUs, and median customer history is 34 events. [Distribution summary](results/training_eda/distribution_summary.csv) · [Exact frequencies](results/training_eda/distributions.csv) · [Distribution figure](results/training_eda/size_distributions.png)
+3. Product popularity counts distinct purchasing customers. The 351 most popular SKUs account for 46.71% of the training events. The 3,613 customers and 3,501 products form 188,368 observed customer–item pairs out of 12,649,113 possible pairs, or **98.51% sparsity**. A repeat event requires a purchase of the same SKU by the same customer in a **strictly earlier** basket. This gives **71,824 / 260,199 events (27.60%)**. The next stage, D2, will construct queries and labels for the target months and implement the common evaluator. [Item popularity](results/training_eda/item_popularity.csv) · [Popularity figure](results/training_eda/item_popularity.png) · [Summary counts and denominators](results/training_eda/summary.json)
+
 ### Technical reference · Inspect an invoice
 
 1. Open the transaction notebook in Google Colab on a CPU runtime. In **File → Open notebook**, use the GitHub tab and the notebook's GitHub URL, or upload the downloaded `.ipynb` file. [Transaction records and baskets](docs/technical/transaction_records.ipynb)
@@ -48,11 +64,12 @@ python docs/technical/transaction_records.py
 | Component | Environment |
 |---|---|
 | Workbook analysis | Google Colab with a CPU, or local Jupyter with Python. The analysis was verified locally with Python 3.12.14, pandas 2.2.3, and openpyxl 3.1.5. |
+| Training-period EDA | Python with pandas and Matplotlib. Use a CPU runtime with Jupyter or Colab to run the notebook. |
 | Model experiments (planned) | Colab CPU for MF and LightGBM, Colab with an NVIDIA GPU for LRURec and Mamba4Rec. Tested model-specific dependency versions will accompany the training code. |
 
 ## Random seeds
 
-The workbook check, invoice example, and cleaning audit are deterministic. Planned experiments use training seed `42` for hyperparameter search, seeds `42`, `2026`, and `3407` to check selected configurations, and a separate seed `5481` to sample negatives for ROC AUC.
+The workbook check, invoice example, cleaning audit, and training-period EDA use deterministic calculations. Planned experiments use training seed `42` for hyperparameter search, seeds `42`, `2026`, and `3407` to check selected configurations, and a separate seed `5481` to sample negatives for ROC AUC.
 
 ## Dataset citation
 
@@ -68,6 +85,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | Verified | [data_manifest.json](results/data_manifest.json) | Source workbook identity and a summary of the cleaning run. |
 | Verified | [row_decisions.csv.gz](data/processed/row_decisions.csv.gz) | Source row numbers and cleaning decisions across the original worksheet. |
 | Verified | [purchase_lines.csv.gz](data/processed/purchase_lines.csv.gz), [basket_events.csv.gz](data/processed/basket_events.csv.gz) | Retained purchase lines and aggregated invoice–product events. |
+| Verified locally | [Training EDA results](results/training_eda/) | Training-window totals and denominators, monthly volume, distributions and product popularity in JSON, CSV and PNG formats. |
 | Available on execution | Output cells in [the transaction notebook](docs/technical/transaction_records.ipynb) | Workbook dimensions, invoice lines, and basket totals. |
 | Planned | `results/test_metrics.csv` | Four-model comparison on the frozen test protocol. |
 | Planned | `results/cohort_coverage.csv`, `results/segment_metrics.csv`, `results/case_study.csv` | Population coverage, metrics by group, and individual recommendations. |

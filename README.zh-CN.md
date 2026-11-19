@@ -28,6 +28,22 @@ python -m scripts.prepare_data
 
 **如何使用清洗结果。** `purchase_lines.csv.gz` 的每一行是一条保留的正价购买明细。`basket_events.csv.gz` 的每一行对应一位客户在一张发票中的一种商品。聚合时分别累加件数和各行金额（数量 × 单价）。该客户在同张发票上最后一条保留明细的时间为整篮完成时间。全表共得到 **386,236 个事件**，涉及 **18,402 个购物篮、4,334 位客户和 3,658 种商品**。MF、LightGBM、LRURec 和 Mamba4Rec 共用这份购物篮事件表构建购买历史。训练和评估属于后续步骤。
 
+### D1 · 探索训练期购买数据
+
+在 Colab 选择 CPU，打开训练期 EDA notebook，从上往下运行。使用 `data/processed/` 中的两份 D1 产物和 `results/data_manifest.json` 内的校验值，或使用 notebook 提供的经校验的同版本文件。在本地复现时，从仓库根目录运行下方命令。如果清洗产物位于其他项目文件夹，用 `--project-dir` 指定该目录。程序在所选项目的 `results/training_eda/` 下写入表格和图形。[训练期 EDA notebook](notebooks/training_eda.ipynb) · [本地运行入口](scripts/analyze_training.py)
+
+```bash
+python -m scripts.analyze_training
+```
+
+**统计范围。** 选取 2010 年 12 月 1 日起、2011 年 10 月 1 日前完成的正价商品购物篮，按这些购物篮取对应的原始购买明细。训练窗口共含 **262,597 条购买明细、260,199 个购物篮–商品事件和 13,081 个购物篮**。十月验证、十一月测试的活动在该窗口之外。
+
+**如何解读输出。**
+
+1. 从月度表查看活跃客户、购物篮、事件、件数与金额（英镑）的变化。同一客户可在多个月活跃，把每月客户数相加会重复计算回头客。[月度统计表](results/training_eda/monthly_activity.csv) · [月度交易量图](results/training_eda/monthly_volume.png)
+2. 阅读分布时先确认统计单位。单价和购买件数取自每条明细；篮大小为一张客户发票中不同商品编码数；客户历史长度为该客户的购物篮–商品事件数。正价商品单价中位数为 £1.95，篮大小中位数为 15 种商品，客户历史长度中位数为 34 个事件。[分布摘要](results/training_eda/distribution_summary.csv) · [各取值频数](results/training_eda/distributions.csv) · [分布图](results/training_eda/size_distributions.png)
+3. 商品热度按购买该商品的不同客户数排序。最热门的 351 种商品占训练期事件的 46.71%。3,613 位客户与 3,501 种商品可组成 12,649,113 个客户–商品对，实际观察到 188,368 个，**稀疏度为 98.51%**。若同一客户在完成时间**严格更早**的购物篮中买过同一商品，本次事件计作复购，共 **71,824 / 260,199 个事件（27.60%）**。下一阶段 D2 将按目标月构造查询与标签，编写统一评价器。[商品热度表](results/training_eda/item_popularity.csv) · [商品热度图](results/training_eda/item_popularity.png) · [汇总及分母](results/training_eda/summary.json)
+
 ### 技术文档 · 核对一张发票
 
 1. 在 Google Colab 选择 CPU 运行时，打开交易明细 notebook。在「文件 → 打开笔记本」中，可以选择 GitHub 标签页并粘贴该文件的 GitHub 地址，也可以上传下载的 `.ipynb` 文件。[原始交易明细与购物篮](docs/technical/transaction_records.ipynb)
@@ -48,11 +64,12 @@ python docs/technical/transaction_records.py
 | 组件 | 运行环境 |
 |---|---|
 | 工作簿分析 | Google Colab CPU，或本地 Python 与 Jupyter。分析代码已在本地用 Python 3.12.14、pandas 2.2.3、openpyxl 3.1.5 验证。 |
+| 训练期 EDA | Python、pandas 和 Matplotlib。在 CPU 上使用 Jupyter 或 Colab 运行 notebook。 |
 | 模型实验（计划） | MF、LightGBM 使用 Colab CPU，LRURec、Mamba4Rec 使用 Colab NVIDIA GPU。各模型实际验证通过的依赖版本将随训练代码记录。 |
 
 ## 随机种子
 
-工作簿核验、发票示例及清洗审计都使用确定性计算。按实验计划，超参数搜索使用训练种子 `42`，入选配置使用 `42`、`2026`、`3407` 复核，计算 ROC AUC 时另用种子 `5481` 抽取负例。
+工作簿核验、发票示例、清洗审计及训练期 EDA 均使用确定性计算。按实验计划，超参数搜索使用训练种子 `42`，入选配置使用 `42`、`2026`、`3407` 复核，计算 ROC AUC 时另用种子 `5481` 抽取负例。
 
 ## 数据集引用
 
@@ -68,6 +85,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | 已核验 | [data_manifest.json](results/data_manifest.json) | 输入工作簿的标识和本次清洗摘要。 |
 | 已核验 | [row_decisions.csv.gz](data/processed/row_decisions.csv.gz) | 全部原始明细的 Excel 行号与清洗决定。 |
 | 已核验 | [purchase_lines.csv.gz](data/processed/purchase_lines.csv.gz)、[basket_events.csv.gz](data/processed/basket_events.csv.gz) | 保留的购买明细和按客户、发票、商品聚合的购物篮事件。 |
+| 本地已核验 | [训练期 EDA 输出目录](results/training_eda/) | 训练窗口总量及分母、月度统计、分布与商品热度表和图，格式为 JSON、CSV 和 PNG。 |
 | 运行后可查看 | [交易明细 notebook](docs/technical/transaction_records.ipynb) 的输出单元格 | 工作表行列数、发票明细和购物篮汇总。 |
 | 计划生成 | `results/test_metrics.csv` | 在冻结的测试协议下比较四个模型。 |
 | 计划生成 | `results/cohort_coverage.csv`、`results/segment_metrics.csv`、`results/case_study.csv` | 客户覆盖、分组指标和个案推荐结果。 |
