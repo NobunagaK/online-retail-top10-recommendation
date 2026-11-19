@@ -1,0 +1,133 @@
+ExcelRow,InvoiceNo,StockCode,Description,Quantity,InvoiceDate,UnitPrice,CustomerID,Country,five_digit_decision,frozen_decision,signed_amount_gbp
+21328,538071,DCGS0076,SUNJAR LED NIGHT NIGHT LIGHT,1,2010-12-09 14:09:00,16.13,,United Kingdom,excluded_stock_code,sale,16.13
+24908,538349,DCGS0003,BOXED GLASS ASHTRAY,1,2010-12-10 14:59:00,2.51,,United Kingdom,excluded_stock_code,sale,2.51
+36462,539451,DCGS0003,BOXED GLASS ASHTRAY,1,2010-12-17 16:59:00,2.51,,United Kingdom,excluded_stock_code,sale,2.51
+39315,539631,DCGS0076,SUNJAR LED NIGHT NIGHT LIGHT,2,2010-12-20 15:03:00,16.13,,United Kingdom,excluded_stock_code,sale,32.26
+40054,539718,DCGS0070,CAMOUFLAGE DOG COLLAR,1,2010-12-21 13:06:00,12.72,,United Kingdom,excluded_stock_code,sale,12.72
+75055,542541,DCGS0069,OOH LA LA DOGS COLLAR,1,2011-01-28 14:25:00,15.79,,United Kingdom,excluded_stock_code,sale,15.79
+76253,542622,DCGS0003,BOXED GLASS ASHTRAY,1,2011-01-31 09:09:00,2.46,,United Kingdom,excluded_stock_code,sale,2.46
+84018,543358,DCGSSBOY,BOYS PARTY BAG,1,2011-02-07 14:04:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+84019,543358,DCGSSGIRL,GIRLS PARTY BAG,3,2011-02-07 14:04:00,3.29,,United Kingdom,excluded_stock_code,sale,9.870000000000001
+97248,544599,DCGSSBOY,BOYS PARTY BAG,1,2011-02-21 18:15:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+112725,545897,DCGSSBOY,BOYS PARTY BAG,5,2011-03-07 17:22:00,3.29,,United Kingdom,excluded_stock_code,sale,16.45
+112726,545897,DCGSSGIRL,GIRLS PARTY BAG,5,2011-03-07 17:22:00,3.29,,United Kingdom,excluded_stock_code,sale,16.45
+116893,546306,DCGSSBOY,BOYS PARTY BAG,1,2011-03-10 16:16:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+116894,546306,DCGSSGIRL,GIRLS PARTY BAG,2,2011-03-10 16:16:00,3.29,,United Kingdom,excluded_stock_code,sale,6.58
+128109,547249,DCGSSBOY,BOYS PARTY BAG,6,2011-03-22 09:27:00,3.29,,United Kingdom,excluded_stock_code,sale,19.740000000000002
+128110,547249,DCGSSGIRL,GIRLS PARTY BAG,17,2011-03-22 09:27:00,3.29,,United Kingdom,excluded_stock_code,sale,55.93
+128271,547250,DCGSSGIRL,GIRLS PARTY BAG,2,2011-03-22 09:30:00,3.29,,United Kingdom,excluded_stock_code,sale,6.58
+150866,549524,DCGSSGIRL,GIRLS PARTY BAG,1,2011-04-08 15:42:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+157197,550193,PADS,PADS TO MATCH ALL CUSHIONS,1,2011-04-15 09:27:00,0.001,13952,United Kingdom,excluded_stock_code,sale,0.001
+160489,550458,DCGSSBOY,BOYS PARTY BAG,1,2011-04-18 13:13:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+170785,551340,DCGS0004,HAYNES CAMPER SHOULDER BAG,1,2011-04-27 17:23:00,16.63,,United Kingdom,excluded_stock_code,sale,16.63
+176008,551995,DCGS0003,BOXED GLASS ASHTRAY,1,2011-05-05 15:42:00,2.46,,United Kingdom,excluded_stock_code,sale,2.46
+176171,551997,DCGSSGIRL,GIRLS PARTY BAG,2,2011-05-05 15:47:00,3.29,,United Kingdom,excluded_stock_code,sale,6.58
+178671,552234,DCGSSBOY,BOYS PARTY BAG,7,2011-05-06 16:01:00,3.29,,United Kingdom,excluded_stock_code,sale,23.03
+178672,552234,DCGSSGIRL,GIRLS PARTY BAG,2,2011-05-06 16:01:00,3.29,,United Kingdom,excluded_stock_code,sale,6.58
+205750,554835,23444,Next Day Carriage,1,2011-05-26 16:11:00,15.0,15241,United Kingdom,sale,excluded_stock_code,15.0
+209590,555251,23444,Next Day Carriage,1,2011-06-01 15:12:00,15.0,13062,United Kingdom,sale,excluded_stock_code,15.0
+210693,555312,23444,Next Day Carriage,1,2011-06-02 10:39:00,15.0,16484,United Kingdom,sale,excluded_stock_code,15.0
+211343,555367,23444,Next Day Carriage,1,2011-06-02 14:28:00,15.0,17900,United Kingdom,sale,excluded_stock_code,15.0
+218013,555948,23444,Next Day Carriage,1,2011-06-08 10:49:00,30.0,13752,United Kingdom,sale,excluded_stock_code,30.0
+224736,556574,23444,Next Day Carriage,1,2011-06-13 13:41:00,15.0,16209,United Kingdom,sale,excluded_stock_code,15.0
+225941,556767,23444,Next Day Carriage,1,2011-06-14 12:17:00,15.0,18073,United Kingdom,sale,excluded_stock_code,15.0
+226391,556794,23444,Next Day Carriage,1,2011-06-14 14:06:00,15.0,13720,United Kingdom,sale,excluded_stock_code,15.0
+236115,557681,23444,Next Day Carriage,1,2011-06-22 10:31:00,15.0,14463,United Kingdom,sale,excluded_stock_code,15.0
+241563,558233,23444,Next Day Carriage,1,2011-06-27 14:36:00,15.0,18073,United Kingdom,sale,excluded_stock_code,15.0
+249157,558887,23444,Next Day Carriage,1,2011-07-04 15:26:00,15.0,18265,United Kingdom,sale,excluded_stock_code,15.0
+249752,558908,23444,Next Day Carriage,1,2011-07-05 09:06:00,15.0,13338,United Kingdom,sale,excluded_stock_code,15.0
+250501,559035,23444,Next Day Carriage,1,2011-07-05 15:12:00,15.0,13695,United Kingdom,sale,excluded_stock_code,15.0
+252024,C559059,23444,Next Day Carriage,-1,2011-07-06 10:00:00,15.0,13338,United Kingdom,credit,excluded_stock_code,-15.0
+252607,559131,23574,PACKING CHARGE,1,2011-07-06 13:04:00,7.5,18144,United Kingdom,sale,excluded_stock_code,7.5
+253961,559206,23444,Next Day Carriage,1,2011-07-07 11:12:00,15.0,18073,United Kingdom,sale,excluded_stock_code,15.0
+254451,559315,23444,Next Day Carriage,1,2011-07-07 13:52:00,15.0,13456,United Kingdom,sale,excluded_stock_code,15.0
+262773,559923,DCGSSBOY,BOYS PARTY BAG,20,2011-07-13 16:07:00,3.29,,United Kingdom,excluded_stock_code,sale,65.8
+267910,560366,23444,Next Day Carriage,1,2011-07-18 12:19:00,15.0,16859,United Kingdom,sale,excluded_stock_code,15.0
+271358,560690,23444,Next Day Carriage,1,2011-07-20 12:00:00,15.0,16807,United Kingdom,sale,excluded_stock_code,15.0
+277565,561115,23444,Next Day Carriage,1,2011-07-25 12:12:00,15.0,17675,United Kingdom,sale,excluded_stock_code,15.0
+277953,561200,23444,Next Day Carriage,1,2011-07-25 15:01:00,15.0,13695,United Kingdom,sale,excluded_stock_code,15.0
+278380,561209,DCGSSBOY,BOYS PARTY BAG,2,2011-07-25 16:57:00,1.25,,United Kingdom,excluded_stock_code,sale,2.5
+278381,561209,DCGSSGIRL,GIRLS PARTY BAG,5,2011-07-25 16:57:00,1.25,,United Kingdom,excluded_stock_code,sale,6.25
+279047,561226,PADS,PADS TO MATCH ALL CUSHIONS,1,2011-07-26 10:13:00,0.001,15618,United Kingdom,excluded_stock_code,sale,0.001
+279700,561359,23444,Next Day Carriage,1,2011-07-26 15:29:00,15.0,17160,United Kingdom,sale,excluded_stock_code,15.0
+280772,561502,23444,Next Day Carriage,1,2011-07-27 14:14:00,15.0,14305,United Kingdom,sale,excluded_stock_code,15.0
+288281,562148,23444,Next Day Carriage,1,2011-08-03 10:49:00,15.0,13695,United Kingdom,sale,excluded_stock_code,15.0
+297100,562933,DCGSSGIRL,GIRLS PARTY BAG,5,2011-08-10 16:51:00,3.29,,United Kingdom,excluded_stock_code,sale,16.45
+298808,563060,23444,Next Day Carriage,1,2011-08-11 15:24:00,15.0,17653,United Kingdom,sale,excluded_stock_code,15.0
+304093,563561,23444,Next Day Carriage,1,2011-08-17 14:02:00,15.0,18073,United Kingdom,sale,excluded_stock_code,15.0
+305346,563685,23574,PACKING CHARGE,1,2011-08-18 12:26:00,7.5,14911,EIRE,sale,excluded_stock_code,7.5
+308800,564050,23444,Next Day Carriage,1,2011-08-22 13:32:00,15.0,17160,United Kingdom,sale,excluded_stock_code,15.0
+309379,C564084,23574,PACKING CHARGE,-1,2011-08-23 09:16:00,7.5,14911,EIRE,credit,excluded_stock_code,-7.5
+310677,564197,23444,Next Day Carriage,1,2011-08-23 17:13:00,15.0,13425,United Kingdom,sale,excluded_stock_code,15.0
+311777,564318,23444,Next Day Carriage,1,2011-08-24 13:15:00,15.0,14035,United Kingdom,sale,excluded_stock_code,15.0
+318314,564825,DCGSSGIRL,GIRLS PARTY BAG,1,2011-08-30 12:26:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+318930,564839,23444,Next Day Carriage,1,2011-08-30 12:45:00,15.0,13524,United Kingdom,sale,excluded_stock_code,15.0
+319723,564863,23444,Next Day Carriage,1,2011-08-31 10:30:00,15.0,15491,United Kingdom,sale,excluded_stock_code,15.0
+319869,564910,23444,Next Day Carriage,1,2011-08-31 12:31:00,15.0,13993,United Kingdom,sale,excluded_stock_code,15.0
+330878,565929,23444,Next Day Carriage,1,2011-09-08 10:11:00,15.0,15488,United Kingdom,sale,excluded_stock_code,15.0
+332656,566086,23444,Next Day Carriage,1,2011-09-09 10:16:00,15.0,14051,United Kingdom,sale,excluded_stock_code,15.0
+333141,566178,23574,PACKING CHARGE,1,2011-09-09 12:41:00,7.5,16353,United Kingdom,sale,excluded_stock_code,7.5
+347011,567252,23444,Next Day Carriage,1,2011-09-19 11:37:00,15.0,13695,United Kingdom,sale,excluded_stock_code,15.0
+348206,567380,23574,PACKING CHARGE,1,2011-09-20 10:06:00,7.5,12620,France,sale,excluded_stock_code,7.5
+355257,567913,23574,PACKING CHARGE,1,2011-09-22 17:08:00,7.5,18144,United Kingdom,sale,excluded_stock_code,7.5
+357044,568064,23444,Next Day Carriage,1,2011-09-23 13:42:00,15.0,14880,United Kingdom,sale,excluded_stock_code,15.0
+359873,568200,PADS,PADS TO MATCH ALL CUSHIONS,1,2011-09-25 14:58:00,0.001,16198,United Kingdom,excluded_stock_code,sale,0.001
+364917,568680,23444,Next Day Carriage,1,2011-09-28 14:10:00,15.0,18265,United Kingdom,sale,excluded_stock_code,15.0
+365585,568711,23444,Next Day Carriage,1,2011-09-28 15:48:00,15.0,14947,United Kingdom,sale,excluded_stock_code,15.0
+365968,568716,DCGSSBOY,BOYS PARTY BAG,2,2011-09-28 16:13:00,3.29,,United Kingdom,excluded_stock_code,sale,6.58
+366969,568805,23574,PACKING CHARGE,1,2011-09-29 10:55:00,7.5,12826,United Kingdom,sale,excluded_stock_code,7.5
+368927,569003,23574,PACKING CHARGE,1,2011-09-29 18:13:00,7.5,13364,United Kingdom,sale,excluded_stock_code,7.5
+373432,569329,23444,Next Day Carriage,1,2011-10-03 13:03:00,15.0,17652,United Kingdom,sale,excluded_stock_code,15.0
+374912,C569410,23574,PACKING CHARGE,-1,2011-10-04 09:48:00,7.5,13364,United Kingdom,credit,excluded_stock_code,-7.5
+378681,569660,23444,Next Day Carriage,1,2011-10-05 13:05:00,15.0,17382,United Kingdom,sale,excluded_stock_code,15.0
+388067,570413,23444,Next Day Carriage,1,2011-10-10 13:13:00,15.0,17652,United Kingdom,sale,excluded_stock_code,15.0
+390539,570555,23444,Next Day Carriage,1,2011-10-11 11:03:00,15.0,17119,United Kingdom,sale,excluded_stock_code,15.0
+402133,571474,23444,Next Day Carriage,1,2011-10-17 14:41:00,15.0,16389,United Kingdom,sale,excluded_stock_code,15.0
+403596,571641,23574,PACKING CHARGE,1,2011-10-18 12:07:00,7.5,17135,United Kingdom,sale,excluded_stock_code,7.5
+408205,571931,DCGSSGIRL,GIRLS PARTY BAG,1,2011-10-19 16:59:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+424456,573266,23444,Next Day Carriage,1,2011-10-28 12:40:00,15.0,15290,United Kingdom,sale,excluded_stock_code,15.0
+426441,573351,23444,Next Day Carriage,1,2011-10-30 12:34:00,15.0,13524,United Kingdom,sale,excluded_stock_code,15.0
+429159,573545,23444,Next Day Carriage,1,2011-10-31 13:12:00,15.0,16969,United Kingdom,sale,excluded_stock_code,15.0
+432854,573895,23574,PACKING CHARGE,1,2011-11-01 14:01:00,7.5,15423,United Kingdom,sale,excluded_stock_code,7.5
+433580,573931,23574,PACKING CHARGE,1,2011-11-02 10:16:00,7.5,16884,United Kingdom,sale,excluded_stock_code,7.5
+433789,573994,23574,PACKING CHARGE,1,2011-11-02 11:23:00,7.5,17135,United Kingdom,sale,excluded_stock_code,7.5
+433984,574017,23444,Next Day Carriage,1,2011-11-02 12:04:00,15.0,16014,United Kingdom,sale,excluded_stock_code,15.0
+437294,574282,23444,Next Day Carriage,1,2011-11-03 14:52:00,15.0,15612,United Kingdom,sale,excluded_stock_code,15.0
+440469,574532,23444,Next Day Carriage,1,2011-11-04 14:19:00,15.0,15676,United Kingdom,sale,excluded_stock_code,15.0
+456294,575682,23574,PACKING CHARGE,1,2011-11-10 15:37:00,7.5,12826,United Kingdom,sale,excluded_stock_code,7.5
+464650,576148,23444,Next Day Carriage,1,2011-11-14 10:50:00,15.0,15671,United Kingdom,sale,excluded_stock_code,15.0
+465244,576215,23444,Next Day Carriage,1,2011-11-14 12:55:00,15.0,17652,United Kingdom,sale,excluded_stock_code,15.0
+467605,576359,23444,Next Day Carriage,1,2011-11-14 16:59:00,15.0,14680,United Kingdom,sale,excluded_stock_code,15.0
+474604,576840,DCGSSGIRL,GIRLS PARTY BAG,1,2011-11-16 15:23:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+476574,577025,23444,Next Day Carriage,1,2011-11-17 12:54:00,15.0,16161,United Kingdom,sale,excluded_stock_code,15.0
+480553,577310,23444,Next Day Carriage,1,2011-11-18 13:15:00,15.0,13516,United Kingdom,sale,excluded_stock_code,15.0
+486340,577727,23444,Next Day Carriage,1,2011-11-21 12:43:00,15.0,15671,United Kingdom,sale,excluded_stock_code,15.0
+489960,578032,23444,Next Day Carriage,1,2011-11-22 13:41:00,15.0,16633,United Kingdom,sale,excluded_stock_code,15.0
+493884,578253,23444,Next Day Carriage,1,2011-11-23 12:51:00,15.0,14744,United Kingdom,sale,excluded_stock_code,15.0
+495328,578301,23444,Next Day Carriage,1,2011-11-23 15:14:00,15.0,17034,United Kingdom,sale,excluded_stock_code,15.0
+495736,578318,23574,PACKING CHARGE,1,2011-11-23 16:48:00,7.5,17135,United Kingdom,sale,excluded_stock_code,7.5
+497333,578362,23444,Next Day Carriage,1,2011-11-24 10:39:00,15.0,12913,United Kingdom,sale,excluded_stock_code,15.0
+500108,578708,23444,Next Day Carriage,1,2011-11-25 11:21:00,15.0,15737,United Kingdom,sale,excluded_stock_code,15.0
+500588,578789,23444,Next Day Carriage,1,2011-11-25 12:17:00,15.0,16161,United Kingdom,sale,excluded_stock_code,15.0
+501022,578816,23444,Next Day Carriage,1,2011-11-25 13:44:00,15.0,14111,United Kingdom,sale,excluded_stock_code,15.0
+506994,579165,23444,Next Day Carriage,1,2011-11-28 14:01:00,15.0,13389,United Kingdom,sale,excluded_stock_code,15.0
+507358,579176,23444,Next Day Carriage,1,2011-11-28 14:44:00,15.0,13950,United Kingdom,sale,excluded_stock_code,15.0
+507407,579185,23444,Next Day Carriage,1,2011-11-28 15:28:00,15.0,13188,United Kingdom,sale,excluded_stock_code,15.0
+508679,579260,23444,Next Day Carriage,1,2011-11-29 08:41:00,15.0,14618,United Kingdom,sale,excluded_stock_code,15.0
+509819,579404,23444,Next Day Carriage,1,2011-11-29 12:21:00,15.0,14126,United Kingdom,sale,excluded_stock_code,15.0
+509835,579407,23444,Next Day Carriage,1,2011-11-29 12:32:00,15.0,13657,United Kingdom,sale,excluded_stock_code,15.0
+513115,579535,23444,Next Day Carriage,1,2011-11-30 09:50:00,15.0,15414,United Kingdom,sale,excluded_stock_code,15.0
+514142,579675,23444,Next Day Carriage,1,2011-11-30 13:08:00,15.0,15654,United Kingdom,sale,excluded_stock_code,15.0
+514188,579684,23444,Next Day Carriage,1,2011-11-30 13:45:00,15.0,14618,United Kingdom,sale,excluded_stock_code,15.0
+516965,580024,23444,Next Day Carriage,1,2011-12-01 11:51:00,15.0,15172,United Kingdom,sale,excluded_stock_code,15.0
+517886,580097,23444,Next Day Carriage,1,2011-12-01 14:58:00,15.0,14216,United Kingdom,sale,excluded_stock_code,15.0
+518713,580115,DCGSSBOY,BOYS PARTY BAG,1,2011-12-01 16:22:00,3.29,,United Kingdom,excluded_stock_code,sale,3.29
+520758,580298,23444,Next Day Carriage,1,2011-12-02 13:54:00,15.0,17086,United Kingdom,sale,excluded_stock_code,15.0
+522293,580395,23444,Next Day Carriage,1,2011-12-04 10:56:00,15.0,17629,United Kingdom,sale,excluded_stock_code,15.0
+524547,580599,23444,Next Day Carriage,1,2011-12-05 11:11:00,15.0,12925,United Kingdom,sale,excluded_stock_code,15.0
+525427,580622,23444,Next Day Carriage,1,2011-12-05 12:09:00,15.0,17006,United Kingdom,sale,excluded_stock_code,15.0
+525440,580630,23444,Next Day Carriage,1,2011-12-05 12:11:00,15.0,12913,United Kingdom,sale,excluded_stock_code,15.0
+533278,581022,23574,PACKING CHARGE,1,2011-12-07 10:25:00,7.5,12826,United Kingdom,sale,excluded_stock_code,7.5
+534093,581132,23444,Next Day Carriage,1,2011-12-07 12:55:00,15.0,17590,United Kingdom,sale,excluded_stock_code,15.0
+536865,581221,23444,Next Day Carriage,1,2011-12-08 09:40:00,15.0,17856,United Kingdom,sale,excluded_stock_code,15.0
+537784,581336,23444,Next Day Carriage,1,2011-12-08 12:10:00,15.0,16161,United Kingdom,sale,excluded_stock_code,15.0

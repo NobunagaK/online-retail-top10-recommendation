@@ -24,30 +24,48 @@
   },
   "counts": {
     "after_five_rules": 392692,
-    "removed_total": 150849,
-    "paid_merchandise_lines": 391060,
-    "basket_item_events": 386236,
-    "baskets": 18402,
-    "customers": 4334,
-    "stock_codes": 3658,
-    "paid_units": 5141694,
-    "recorded_amount_gbp": 8735922.643
+    "gross_positive_lines_before_credits": 391060,
+    "removed_total": 151741,
+    "fully_cancelled_sale_lines": 892,
+    "partially_cancelled_sale_lines": 568,
+    "cancelled_units": 189315,
+    "cancellation_amount_at_sale_prices_gbp": 349595.9,
+    "paid_merchandise_lines": 390168,
+    "basket_item_events": 385352,
+    "baskets": 18331,
+    "customers": 4330,
+    "stock_codes": 3656,
+    "paid_units": 4952379,
+    "recorded_amount_gbp": 8386326.743
+  },
+  "training_snapshot": {
+    "start_inclusive": "2010-12-01",
+    "end_exclusive": "2011-10-01",
+    "credit_time_end_exclusive": "2011-10-01",
+    "paid_merchandise_lines": 262067,
+    "basket_item_events": 259676,
+    "baskets": 13040,
+    "customers": 3612,
+    "stock_codes": 3499,
+    "paid_units": 3514634,
+    "recorded_amount_gbp": 5935091.803
   },
   "event_key": [
     "CustomerID",
     "InvoiceNo",
     "StockCode"
   ],
-  "basket_time": "Latest retained line timestamp on the customer invoice.",
-  "scope": "Whole-workbook cleaning. Slice by basket_time before constructing model histories or labels.",
+  "basket_time": "Latest original positive eligible merchandise line timestamp on the customer invoice, fixed before credit adjustments.",
+  "scope": "Full exports are retrospective. Training exports replay only baskets and credits strictly before 2011-10-01. For any earlier or target cutoff use purchase_snapshot on the signed ledger and canonical allocations.",
+  "amounts": "Recommendation lines use surviving units at original sale prices. Signed A/B ledgers retain each original sale/credit quantity and actual price. Do not subtract matched cancellations again from ledger net amounts.",
   "outputs": {
     "results/cleaning_audit.csv": {
       "rows": 5,
       "sha256": "60b3431d9ece555ec2fd84bf3653d209760edd6d111565f9c0cadae5801a298d"
     },
     "results/cleaning_steps.csv": {
-      "rows": 34,
-      "sha256": "b5a58d42bb34f48cde3cbad3c958d006b0d361b5e9f814667771bb1315bd4ce3"
+      "rows": 44,
+      "sha256": "b70e25e23df77078de2cf21618da11e0ed5ac7cd02c15b6fcdf6fb2d6dfa22f7"
     },
     "results/merchandise_rules.csv": {
       "rows": 38,
@@ -55,15 +73,59 @@
     },
     "data/processed/row_decisions.csv.gz": {
       "rows": 541909,
-      "sha256": "ecff78c04465d6a78648f5fca538e5a8433fb6bc8df6a9c3429f85472f7a632b"
+      "sha256": "3eb6325809e6296e4a8a0daacf41b6be8ff7ebd665f4e6455c93d8537fdf8ce8"
     },
     "data/processed/purchase_lines.csv.gz": {
-      "rows": 391060,
-      "sha256": "e766ba2f68d195d50525498237f6a29aa5bf13652e07d296d9ec89d9e71d71b9"
+      "rows": 390168,
+      "sha256": "5ba85260701d1973e4f198fb1fe2768d75a273d11a9741ad159441ef8c8a11fd"
     },
     "data/processed/basket_events.csv.gz": {
-      "rows": 386236,
-      "sha256": "606eb1f7d72dc080bb4f6d5f29fc7b1192aa9b270990298cc59a9eb3a559f525"
+      "rows": 385352,
+      "sha256": "6f799d70f60ab29b754bc227419ef5d45246f5423e41f37553445bf3b0673192"
+    },
+    "data/processed/training_purchase_lines.csv.gz": {
+      "rows": 262067,
+      "sha256": "11e1450e297650fb23354603ba1ffe7b6b06d4c25a9d6a736d97f0153f9665a0"
+    },
+    "data/processed/training_basket_events.csv.gz": {
+      "rows": 259676,
+      "sha256": "e5c9930ced435eff8ccb7b0cd6caca3ede4bf714fa082d3b19fc201aefdf69be"
+    },
+    "data/processed/signed_ledger_a.csv.gz": {
+      "rows": 531112,
+      "sha256": "f4d70eb4943829a6558395dd4f4c193134732ebbf479d5c6f800f4d01a6960ad"
+    },
+    "data/processed/signed_ledger_b.csv.gz": {
+      "rows": 399563,
+      "sha256": "13cdcdc8d8d621a3b2a5f86affba21e81eedd85289330bb43a7ae943bb204de2"
+    },
+    "results/credit_allocations.csv.gz": {
+      "rows": 8665,
+      "sha256": "9c9c2e8c2f8d2d4b9659327523f76e1a87b58d51433283cb87e302642bc8b97c"
+    },
+    "results/reversal_source_audit.csv": {
+      "rows": 24,
+      "sha256": "53783fcee677f04bc0292f98be281fcfbb38172c9b930776a81589bb173573f0"
+    },
+    "results/reversal_source_differences.csv": {
+      "rows": 132,
+      "sha256": "6b79470194be27b85380c303c0e5770eed02ea6cf6cdc4fcc2306b72e1b40354"
+    },
+    "results/reversal_reconciliation.csv": {
+      "rows": 59,
+      "sha256": "4cfacc2aaaf1748358a54e7b298dccbb5a18bc04b7866c1d0147753a7e0654c1"
+    },
+    "results/reversal_region_summary.csv": {
+      "rows": 60,
+      "sha256": "87ab8cb446480bcc8fa958ff659a7456620cba6f311899d59974a57bcc8045fb"
+    },
+    "results/reversal_match_differences.csv": {
+      "rows": 314,
+      "sha256": "86cc8ba3aa12fc3e0d2e503871b6236a770cc636f54e0b8131ed4d945c34040d"
+    },
+    "results/reversal_benchmark.csv": {
+      "rows": 80,
+      "sha256": "5cb5b3237939ede7e8a81cb903cd73cf82c9e063e307dd9f67c4961e31a6d06e"
     }
   }
 }

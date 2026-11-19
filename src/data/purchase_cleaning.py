@@ -1,4 +1,4 @@
-"""Build a paid-merchandise line table and account for every source row."""
+"""Find gross positive purchase candidates before applying matched credits."""
 
 import pandas as pd
 
@@ -38,13 +38,14 @@ def _zero_price_contexts(raw: pd.DataFrame, cancelled: pd.Series) -> dict[str, p
 
 
 def clean_purchase_lines(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Apply frozen purchase rules to the eight original columns plus ExcelRow.
+    """Apply gross eligibility rules to the eight original columns plus ExcelRow.
 
     Input order determines the first copy of an exact eight-field duplicate.
     raw_flagged counts each rule on the original rows. rows_removed counts only
     its first matches among survivors. The retained summary is the size of the
     final output. ExcelRow is the stable worksheet locator in both row tables.
-    Literal note/description clues and later returns do not alter past purchases.
+    Credit lines are reviewed separately. Recommendation snapshots incorporate
+    classified cancellations observed before their exclusive as-of times.
     """
     if raw["ExcelRow"].isna().any() or not raw["ExcelRow"].is_unique:
         raise ValueError("ExcelRow must uniquely identify each row of the source worksheet.")
@@ -86,8 +87,8 @@ def clean_purchase_lines(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
     ]:
         exclude(rule, frame[field].isna(), "missingness", reason_en, reason_zh)
     exclude("cancelled_invoice", flags["cancelled_invoice"], "C_invoices, history_summary, case_examples",
-            "A C-prefixed document contributes no new purchase. Earlier positive lines remain in history.",
-            "C 前缀发票不产生新的购买事件，较早的正向购买仍保留在历史中。")
+            "Route C-prefixed records out of the positive-source stream. Match eligible merchandise credits before determining the purchased quantity.",
+            "C 前缀记录不单独产生购买事件。符合条件的商品贷项另行匹配后，再确定最终购买数量。")
     exclude("negative_quantity", frame["Quantity"].lt(0), "Q_nonpositive, nonC_negative, note_summary",
             "Negative units do not add purchased items. Notes can describe damage or adjustments without identifying a buyer.",
             "负数量不形成新增购买。备注可能记录损坏或调整，但不足以确认买家。")
