@@ -1,0 +1,6 @@
+step,rule,raw_flagged,rows_before,rows_removed,rows_after
+1,exact_duplicate,5268,541909,5268,536641
+2,missing_customer_id,135080,536641,135037,401604
+3,cancelled_invoice,9288,401604,8872,392732
+4,nonpositive_quantity,10624,392732,0,392732
+5,nonpositive_unit_price,2517,392732,40,392692
