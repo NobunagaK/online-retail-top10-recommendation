@@ -2,17 +2,31 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. The current runnable component verifies the raw workbook and inspects one invoice. The research plan describes the training and evaluation workflow under development. [Research and development plan](docs/CS5481_Project2_Research_Development_Plan_3.3.en.md)
+This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. The project currently verifies the raw workbook, inspects an invoice, and audits five row-removal rules. The research plan describes the training and evaluation workflow under development. [Research and development plan](docs/CS5481_Project2_Research_Development_Plan_3.3.en.md)
 
 ## Run instructions
+
+### D1 · Audit transaction rows
+
+Open the project notebook in a Colab CPU runtime and run the cells in order. Use the same Drive workbook as the transaction reference below. The notebook loads the versioned audit code, verifies the original workbook, then writes `results/cleaning_audit.csv` in the Drive project folder. If Colab prompts for `clean.py`, download the raw file from the GitHub link shown in the cell and select it in the upload dialog. [Project notebook](notebooks/project2_colab.ipynb)
+
+To reproduce the audit locally, run the following from the repository root using Python 3.11 or later with pandas and openpyxl installed.
+
+```bash
+python -m scripts.prepare_data
+```
+
+Read the CSV in step order. `raw_flagged` counts every match on the original sheet. `rows_removed` counts only rows that reach that step. The five removal counts sum to **149,217**, leaving **392,692** of the **541,909** rows for subsequent merchandise filtering and basket aggregation. [Audit table](results/cleaning_audit.csv) · [Rule implementation](src/data/clean.py)
+
+### Technical reference · Inspect an invoice
 
 1. Open the transaction notebook in Google Colab on a CPU runtime. In **File → Open notebook**, use the GitHub tab and the notebook's GitHub URL, or upload the downloaded `.ipynb` file. [Transaction records and baskets](docs/technical/transaction_records.ipynb)
 2. Put the original workbook in `My Drive/CS5481_Project2_OnlineRetail/data/raw/Online Retail.xlsx`. Run the first code cell and authorize the Drive mount. For another location, copy the Excel file's path from Colab's Files pane when prompted. [Workbook in this repository](<data/raw/Online Retail.xlsx>)
 3. Run the remaining cells in order. The SHA-256 check identifies the workbook used in the plan. Expect **541,909 rows and 8 columns**. Invoice `536365` for customer `17850` has **7 lines, 7 distinct products, 40 units and a total of £139.12**.
 
-For local execution, launch Jupyter from the repository root and open the same notebook. It locates the workbook under `data/raw/` automatically.
+The saved invoice notebook includes the Drive mount cell from the Colab session. In local Jupyter, skip the standalone `drive.mount` cell and run the following workbook-selection cell from the checkout.
 
-To export this notebook as a Python script at submission time, choose **File → Download → Download .py** in Colab. Alternatively, with Jupyter nbconvert installed locally, run the following from the repository root. The script prints the invoice lines and totals to the terminal. Keep the notebook alongside the script to preserve its formatted documentation.
+To export this notebook as a Python script at submission time, choose **File → Download → Download .py** in Colab. Alternatively, with Jupyter nbconvert installed locally, run the following from the repository root. For local execution of the exported invoice script, remove the standalone Colab mount cell before export. The script prints the invoice lines and totals to the terminal. Keep the notebook alongside the script to preserve its formatted documentation.
 
 ```bash
 jupyter nbconvert --to python docs/technical/transaction_records.ipynb
@@ -28,7 +42,7 @@ python docs/technical/transaction_records.py
 
 ## Random seeds
 
-The workbook and invoice checks are deterministic. Planned experiments use training seed `42` for hyperparameter search, seeds `42`, `2026`, and `3407` to check selected configurations, and a separate seed `5481` to sample negatives for ROC AUC.
+The workbook check, invoice example, and cleaning audit are deterministic. Planned experiments use training seed `42` for hyperparameter search, seeds `42`, `2026`, and `3407` to check selected configurations, and a separate seed `5481` to sample negatives for ROC AUC.
 
 ## Dataset citation
 
@@ -38,6 +52,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 
 | Status | Location | Contents |
 |---|---|---|
+| Verified | [results/cleaning_audit.csv](results/cleaning_audit.csv) | Raw matches, net removals, and remaining rows for all five D1 audit rules. |
 | Available on execution | Output cells in [the transaction notebook](docs/technical/transaction_records.ipynb) | Workbook dimensions, invoice lines, and basket totals. |
 | Planned | `results/test_metrics.csv` | Four-model comparison on the frozen test protocol. |
 | Planned | `results/cohort_coverage.csv`, `results/segment_metrics.csv`, `results/case_study.csv` | Population coverage, metrics by group, and individual recommendations. |
