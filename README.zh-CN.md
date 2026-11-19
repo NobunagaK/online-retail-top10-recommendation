@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。数据准备流程逐行记录清洗决定，并生成四种模型共用的正价购买购物篮事件。研究计划记录后续要实现的训练和评估流程。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。数据准备流程逐行记录清洗决定，并生成四种模型共用的净有效购买购物篮事件。研究计划记录后续要实现的训练和评估流程。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 ## 运行说明
 
@@ -11,7 +11,7 @@
 课程要求解释取消、退货、重复交易明细、缺失客户编号、异常数量或价格，说明如何聚合客户与商品的交互，并按时间构建历史。三份 notebook 使用同一工作簿。[五项课程要求，第 3 页](resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3) · [异常分析](docs/technical/transaction_exception_analysis.ipynb) · [清洗与课程问题回答](notebooks/project2_colab.ipynb) · [训练期探索](notebooks/training_eda.ipynb)
 
 1. **先看异常分析。** 按原始 Excel 行号核对 C 单、负数量、零价、坏账和库存备注；在新增的匹配表中追查每条商品冲销的原单、余额、时间和地区，并比较几种清洗规则带来的差异。[证据工作簿](results/transaction_exceptions.xlsx)
-2. **再做 D1 清洗。** 查看每一步的证据、行数、处理理由以及五项课程问题的回答。A 表保留匿名和已知客户的商品交易；B 表只保留已知客户。两表都按记录中的原价将正负明细各计一次。推荐购物篮扣除已知的取消数量，部分取消保留余量，按规则认定的退货保留原购买事件。[经营账 A](data/processed/signed_ledger_a.csv.gz) · [客户账 B](data/processed/signed_ledger_b.csv.gz) · [10 月 1 日购物篮快照](data/processed/training_basket_events.csv.gz)
+2. **再做 D1 清洗。** 查看每一步的证据、行数、处理理由以及五项课程问题的回答。A 表保留匿名和已知客户的商品交易；B 表只保留已知客户。两表都按记录中的原价将正负明细各计一次。每笔原购买扣除截止前已发生且匹配到它的所有冲销，包含取消和退货。部分冲销保留余量；已全额冲销的行贡献零件。按客户、发票、商品聚合后，余量为正才产生一次购买事件。[经营账 A](data/processed/signed_ledger_a.csv.gz) · [客户账 B](data/processed/signed_ledger_b.csv.gz) · [10 月 1 日购物篮快照](data/processed/training_basket_events.csv.gz)
 3. **最后看训练期 EDA。** 读取 2011 年 10 月 1 日零时的专用快照，覆盖 2010 年 12 月至 2011 年 9 月完成的购物篮。月度活动、单价和数量分布、商品热度、复购和稀疏度均按当时已知的冲销重算。[训练期统计](results/training_eda/summary.json) · [月度统计](results/training_eda/monthly_activity.csv) · [商品排名](results/training_eda/item_popularity.csv)
 
 **在 Colab 运行。** 在「文件 → 打开笔记本 → GitHub」选择仓库和包含该文件的分支，依次打开上述 notebook，在 CPU 上从上往下运行。Drive 项目根目录为 `我的云端硬盘/CS5481_Project2_OnlineRetail/`，原表位于 `data/raw/Online Retail.xlsx`。分析和清洗均直接读取原表；EDA 读取清洗产物。生成的表和图写入同一项目的 `data/processed/` 和 `results/`。
@@ -22,13 +22,16 @@
 python -m scripts.analyze_exceptions
 python -m scripts.prepare_data
 python -m scripts.analyze_training
+python -m scripts.check_net_retention
 ```
 
 **如何理解取消和退货。** 在同客户、同商品中寻找时间不晚于 C 单且可冲销余量足够的一条最近购买。可跨价格匹配。同分钟先选 Excel 行号在 C 单之前的正单，再取最小行号。英国、指定的 23 个欧洲地区、其他已知地区的取消上限分别为 72、120、240 小时，等于上限仍算取消，超过上限为项目定义的退货。发货、签收及实物退回无法从工作簿观察。匿名、未匹配和未知地区保留独立审计状态。[整表对账](results/reversal_benchmark.csv) · [商品 C 单匹配明细](results/credit_allocations.csv.gz) · [匹配规则差异](results/reversal_match_differences.csv)
 
 全表共有 8,665 条商品 C 单明细，分类结果为取消 1,473 条、按项目定义的退货 5,883 条、已知客户未匹配 1,147 条、匿名 162 条。发票 `541431` 和 `581483` 两笔巨额购买在相应冲销后有效件数均为 0。有 12 条 C 单与原购买记录在同一分钟。
 
-**如何理解金额与时间。** 有效购买按取消后剩余件数乘以原购买单价计算；账面净额使用每条正负记录自己的单价。前者用于购买行为，后者用于经营统计。截止时间后的 C 单只影响较晚的快照。数据摘要和每份产物的校验值见清单。[清洗产物清单](results/data_manifest.json)
+**如何理解金额与时间。** 有效购买按扣除所有已匹配冲销后的剩余件数乘以原购买单价计算。经营账则按每条销售和贷项各自的单价计算净额。目标是净有效成交（Net Valid Purchase）：目标月结束时，客户在该月的合格购物篮中仍至少保有一件该商品，才将其列为正例。同月另一行或另一张发票上有有效余量，仍可构成该客户的正例。这里的“留存”根据工作簿中的销售与冲销推算，实物是否退还或留在客户手中无法核实。截止时间后的 C 单只影响较晚的快照。数据摘要和每份产物的校验值见清单。[清洗产物清单](results/data_manifest.json)
+
+**阈值敏感性核验。** 将英国的 72 小时改为 120 小时，有 608 条贷项改变分类。核验逐项比较冲销分配、全部篮内事件字段，以及八个训练月份和十月验证月在候选筛选前的月末正例。四个主模型都只使用与地区阈值无关的购买事件字段。依赖地区时限的取消／退货标签、退货计数和退货率作审计用。如果以后将它们加入 LightGBM 的验证集特征对照实验，该实验的特征和得分可能随时限改变。[敏感性对照结果](results/net_retention_threshold_check.csv) · [复现入口](scripts/check_net_retention.py)
 
 ### 技术文档 · 核对一张发票
 

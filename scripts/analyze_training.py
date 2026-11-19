@@ -1,4 +1,4 @@
-"""Summarize paid purchase events from baskets completed in the training window."""
+"""Summarize net retained purchases at the training cutoff."""
 
 import argparse
 import hashlib
@@ -18,11 +18,14 @@ from src.data.training_preference import training_preference
 EVENT_PATH = "data/processed/training_basket_events.csv.gz"
 LINE_PATH = "data/processed/training_purchase_lines.csv.gz"
 MANIFEST_PATH = "results/data_manifest.json"
+QUANTITY_POLICY = "net_retained_all_matched_credits_v1"
 
 
 def load_training_inputs(project):
     """Load the D1 snapshot that uses only credits observed before the training cutoff."""
     manifest = json.loads((project / MANIFEST_PATH).read_text(encoding="utf-8"))
+    if manifest.get("recommendation_quantity_policy") != QUANTITY_POLICY:
+        raise ValueError("Run D1 cleaning to build a net retained purchase snapshot for this EDA.")
     input_hashes = {}
     if not {EVENT_PATH, LINE_PATH}.issubset(manifest["outputs"]):
         raise ValueError("Regenerate the D1 cutoff-specific training snapshot and its manifest.")
@@ -42,8 +45,11 @@ def load_training_inputs(project):
                          parse_dates=["basket_time"])
     lines = pd.read_csv(project / LINE_PATH, dtype=identifiers, keep_default_na=False,
                         usecols=["ExcelRow", *identifiers, "InvoiceDate", "Quantity", "UnitPrice",
-                                 "original_quantity", "cancelled_units", "returned_units"],
+                                 "original_quantity", "matched_credit_units", "cancelled_units",
+                                 "returned_units", "other_matched_units"],
                         parse_dates=["InvoiceDate"])
+    if not lines["Quantity"].eq(lines["original_quantity"] - lines["matched_credit_units"]).all():
+        raise ValueError("The surviving quantity must subtract all matched credits at the training cutoff.")
     return events, lines, input_hashes
 
 
@@ -51,6 +57,7 @@ def summarize_window(train_events, train_lines, preferences, input_hashes):
     return {
         "window": {"field": "basket_time", "start_inclusive": TRAIN_START.isoformat(),
                    "end_exclusive": TRAIN_END.isoformat()},
+        "recommendation_quantity_policy": QUANTITY_POLICY,
         "input_sha256": input_hashes,
         "source_lines": len(train_lines),
         "baskets": len(train_events[["CustomerID", "InvoiceNo"]].drop_duplicates()),
@@ -58,10 +65,10 @@ def summarize_window(train_events, train_lines, preferences, input_hashes):
         "recorded_amount_gbp": float(format(train_events["amount_gbp"].sum(), ".15g")),
         **preferences,
         "definitions": {
-            "source_lines": "Positive sale lines with units still active at the exclusive training cutoff. Fully offset lines are absent.",
-            "units": "Original sale units less quantities allocated to cancellation proxies observed before the cutoff. Return proxies preserve purchase units.",
-            "recorded_amount_gbp": "Surviving units multiplied by the original sale line price, summed over active training purchases.",
-            "repeat_event_share": "Basket-item events with an earlier completed basket for the same customer and SKU / all training basket-item events. Equal timestamps provide no earlier history.",
+            "source_lines": "Original positive sale lines with a positive remaining quantity at the exclusive training cutoff.",
+            "units": "Original sale units less all matched credit units issued strictly before the cutoff, including operational cancellation and return proxies.",
+            "recorded_amount_gbp": "Net retained units multiplied by the original sale line price, summed over surviving training purchases.",
+            "repeat_event_share": "Net retained basket-item events with an earlier net retained basket for the same customer and SKU / all net retained training basket-item events. Equal timestamps provide no earlier history.",
             "repeated_pair_share": "Observed customer-SKU pairs with a strictly later purchase / all observed training customer-SKU pairs.",
             "interaction_sparsity": "1 - observed distinct customer-SKU pairs / (active customers x observed SKUs).",
             "head_items": "Ceiling of 10% of observed SKUs, ranked by distinct customers descending, then exact StockCode ascending.",

@@ -12,33 +12,38 @@ from src.data.exception_impact import impact_tables
 from src.data.exception_missing import missingness_tables
 from src.data.exception_notes import description_evidence, mentioned_invoice_trace, sku_name_evidence
 from src.data.purchase_evidence import purchase_evidence
-from src.data.reversals import compute_reversal_tables
+from src.data.purchase_snapshot import purchase_line_balances
+from src.data.reversals import build_signed_ledger, compute_reversal_tables, match_reversals
 
 
 REVERSAL_GUIDE = [
-    ("ledger_summary", "Frozen merchandise policy. Signed sales and credits retain recorded prices. The gross purchase view deducts only allocated cancellations at their sale prices. Source exclusions are first-match counts.", "冻结商品规则。带符号销售与贷项取各行记录价格；有效购买毛额只按原销售单价扣减已匹配的取消数量。来源筛选按最先命中的规则归因。"),
+    ("ledger_summary", "Frozen merchandise policy. Signed sales and credits retain recorded prices. At original sale prices, gross deducts cancellations only and net deducts every matched credit. Source exclusions are first-match counts.", "冻结商品规则。带符号销售与贷项取各行记录价格；按原销售单价，毛额只扣匹配取消，净额扣除所有可匹配贷项。来源筛选按最先命中的规则归因。"),
     ("credit_summary", "Canonical merchandise credits by destination region and operational status. Amounts use recorded credit prices. Time thresholds are regional assumptions.", "按贷项目的地区与操作分类汇总实际规则下的商品贷项，金额取贷项单价。时限是项目对地区的假设。"),
     ("credit_allocations", "Every eligible merchandise credit with matched sale row, time lag, region, threshold and allocation balance. An unmatched row has no allocated sale.", "全部符合条件的商品贷项，列出匹配销售行、时间差、地区、时限及分配余额；未匹配的贷项无对应销售行。"),
-    ("credit_controls", "Compare code shape versus frozen SKU rules, strict versus inclusive time, and independent versus balance-constrained matches against the supplied study benchmarks.", "以讨论稿基准对照商品码外形与冻结规则、严格早于与允许同时间，以及独立匹配与数量余额约束的结果。"),
+    ("credit_controls", "Compare SKU, timing and allocation assumptions with the discussion benchmarks, including per-credit full/partial counts and later same-SKU purchases.", "对照商品码、时间和贷项分配方式，复核讨论稿给出的逐条全退、部分退和后来同客同货的购买比例。"),
     ("credit_control_rows", "Credit rows whose inclusion, matched sale or class changes between scenarios. Use the source row numbers to reproduce a difference.", "对照情景之间在纳入状态、对应销售行或操作类别上有变化的贷项，可用原始行号复核。"),
-    ("reversal_examples", "Selected credit and sale links including two large reversals, unequal prices, partial cancellations and returns. Track both reversible units and effective purchase units.", "追踪两笔大额撤销、价格不相等、部分取消及退货示例的贷项与销售。分别核对可匹配余额和有效购买数量。"),
+    ("reversal_examples", "Selected credit and sale links including two large reversals, unequal prices, partial cancellations and returns. Remaining allocation capacity equals net retained units after each matched credit.", "追踪两笔大额撤销、价格不相等、部分取消及退货示例的贷项与销售。每次匹配后，可冲余额即净保留数量。"),
     ("sku_policy_differences", "Source rows with different decisions under the five-leading-digit control and frozen product-code rules, including PADS and numeric delivery or packing codes.", "五位数字开头对照规则与冻结商品清单产生不同决定的原始行，含 PADS 及数字编码的运费、包装费。"),
+    ("retention_comparison", "Identified positive lines, basket–SKU events, units and original-price values under observed, cancellation-only gross and net definitions. Each window has its own credit cutoff.", "按原销售、仅扣取消的毛额和扣所有匹配贷项的净额，对比已知客户的销售行、篮内商品事件、数量和原价金额；每个窗口单独设贷项截止点。"),
+    ("retention_transitions", "Full, partial and unaffected source sales and basket–SKU events, split by credit composition. Each share uses all observed units of that grain in the window.", "按来源销售行和篮内商品两种粒度，分别统计全部冲销、部分冲销和未受影响的数量及贷项构成。各占比以对应窗口该粒度全部记录为分母。"),
+    ("return_repurchase", "Full-workbook follow-up after first, last or individual return credits or the last matched credit. Compare a later observed sale with a later sale still net-positive at the end.", "全期资料中，分别从首次、末次、每次操作性退货或末次匹配贷项追查，同客同货其他订单其后是否有销售，以及是否有到期末仍为净正的销售。"),
 ]
 
 
 def reversal_examples(allocations):
-    """Trace all credits on example sales and distinguish allocation from purchase units."""
+    """Trace each matched credit on selected source lines in the order it became visible."""
     matches = allocations.dropna(subset=["purchase_excel_row"]).sort_values(["credit_time", "credit_excel_row"]).copy()
     cancelled = matches["status"].eq("cancellation")
     matches["cancelled_units_here"] = matches["credited_units"].where(cancelled, 0)
     matches["gross_deduction_gbp_here"] = matches["cancelled_units_here"] * matches["purchase_unit_price"]
+    matches["net_deduction_gbp_here"] = matches["credited_units"] * matches["purchase_unit_price"]
     cumulative = matches.groupby("purchase_excel_row")["cancelled_units_here"].cumsum()
-    matches["purchase_units_after_credit"] = matches["purchase_quantity"] - cumulative
+    matches["gross_units_after_cancellations"] = matches["purchase_quantity"] - cumulative
+    matches["purchase_units_after_credit"] = matches["balance_after"]
     cutoff = pd.Timestamp("2011-10-01")
-    before_cutoff = matches["credit_time"].lt(cutoff)
-    cancelled_by_cutoff = matches.loc[before_cutoff].groupby("purchase_excel_row")["cancelled_units_here"].sum()
+    visible = matches.loc[matches["credit_time"].lt(cutoff)].groupby("purchase_excel_row")["credited_units"].sum()
     matches["purchase_units_at_oct1"] = (
-        matches["purchase_quantity"] - matches["purchase_excel_row"].map(cancelled_by_cutoff).fillna(0)
+        matches["purchase_quantity"] - matches["purchase_excel_row"].map(visible).fillna(0)
     ).where(matches["purchase_time"].lt(cutoff)).astype("Int64")
 
     selected = matches.loc[
@@ -46,8 +51,121 @@ def reversal_examples(allocations):
         | matches["credit_excel_row"].eq(222694), "purchase_excel_row"
     ]
     partial = matches.loc[cancelled & matches["credited_units"].lt(matches["balance_before"]), "purchase_excel_row"].head(1)
-    returned = matches.loc[matches["status"].eq("return"), "purchase_excel_row"].head(1)
-    return matches.loc[matches["purchase_excel_row"].isin(pd.concat([selected, partial, returned]))].reset_index(drop=True)
+    example_rows = [67, 292, 5249, 34475, 321282, 370990, 371018, 373424]
+    return matches.loc[matches["purchase_excel_row"].isin([*selected, *partial, *example_rows])].reset_index(drop=True)
+
+
+def retention_comparison(balances):
+    """Compare the three purchase definitions on the same identified, eligible sale lines."""
+    rows = []
+    event_keys = ["CustomerID", "InvoiceNo", "StockCode"]
+    definitions = {
+        "observed_positive_sales": balances["original_quantity"],
+        "gross_after_cancellations": balances["original_quantity"] - balances["cancelled_units"],
+        "net_after_all_matched_credits": balances["Quantity"],
+    }
+    for name, qty in definitions.items():
+        kept = balances.loc[qty.gt(0)]
+        rows.append({
+            "definition": name, "sale_lines": len(kept), "basket_sku_events": len(kept[event_keys].drop_duplicates()),
+            "baskets": len(kept[["CustomerID", "InvoiceNo"]].drop_duplicates()), "customers": kept["CustomerID"].nunique(),
+            "units": int(qty.sum()), "value_at_sale_prices_gbp": round((qty * balances["UnitPrice"]).sum(), 6),
+        })
+    return pd.DataFrame(rows)
+
+
+def retention_transitions(balances):
+    """Count fully, partially and unaffected source lines and basket–SKU groups."""
+    qty_cols = ["original_quantity", "cancelled_units", "returned_units", "other_matched_units", "Quantity"]
+    events = balances.groupby(["CustomerID", "InvoiceNo", "StockCode"], sort=False)[qty_cols].sum()
+    summaries = []
+    for unit, data in [("source_sale_line", balances), ("basket_sku_event", events)]:
+        components = data[["cancelled_units", "returned_units", "other_matched_units"]].gt(0)
+        state = pd.Series("unaffected", index=data.index)
+        state.loc[data["Quantity"].lt(data["original_quantity"])] = "partial"
+        state.loc[data["Quantity"].eq(0)] = "full"
+        composition = pd.Series("none", index=data.index)
+        for column, label in [("cancelled_units", "cancellation"), ("returned_units", "return"), ("other_matched_units", "other")]:
+            composition.loc[components[column]] = label
+        composition.loc[components.sum(axis=1).gt(1)] = "mixed"
+        summary = data.assign(state=state, credit_composition=composition).groupby(
+            ["state", "credit_composition"], as_index=False
+        ).agg(count=("Quantity", "size"), observed_units=("original_quantity", "sum"), retained_units=("Quantity", "sum"))
+        summary.insert(0, "unit", unit)
+        summary["all_observed"] = len(data)
+        summary["share_of_all_observed"] = summary["count"] / len(data)
+        summaries.append(summary)
+    return pd.concat(summaries, ignore_index=True)
+
+
+def compare_return_credit_rows(scenarios):
+    """Reproduce the discussion's two statistics with the same per-credit definition."""
+    rows = []
+    for scenario, matches, ledger in scenarios:
+        returns = matches.loc[matches["status"].eq("return")].copy()
+        returns["size_relative_to_original"] = returns["credited_units"].eq(returns["purchase_quantity"]).map(
+            {True: "full", False: "partial"}
+        )
+        # A sale on a different invoice is a follow-up if any of its lines is strictly later.
+        sales = ledger.loc[ledger["ledger_type"].eq("sale") & ledger["CustomerID"].notna()]
+        orders = sales.groupby(["CustomerID", "StockCode", "InvoiceNo"], as_index=False)["InvoiceDate"].max()
+        pairs = returns.merge(orders, on=["CustomerID", "StockCode"])
+        later = pairs["InvoiceNo"].ne(pairs["purchase_invoice_no"]) & pairs["InvoiceDate"].gt(pairs["credit_time"])
+        followed = pairs.loc[later, "credit_excel_row"]
+        returns["later_observed"] = returns["credit_excel_row"].isin(followed)
+        result = returns.groupby("size_relative_to_original", as_index=False).agg(
+            return_credit_rows=("credit_excel_row", "size"), distinct_linked_sale_lines=("purchase_excel_row", "nunique"),
+            later_observed=("later_observed", "sum")
+        )
+        result["observed_rate"] = result["later_observed"] / result["return_credit_rows"]
+        result["scenario"] = scenario
+        result["scope"] = "individual_return_credit_rows"
+        result["metric"] = "return_credit_relative_to_original_sale_quantity"
+        rows.append(result)
+    return pd.concat(rows, ignore_index=True)
+
+
+def return_repurchase(balances, allocations):
+    """Compare follow-up definitions at the credit-event and distinct original-sale level."""
+    returns = allocations.loc[allocations["status"].eq("return")].copy()
+    balances_by_row = balances.set_index("ExcelRow")
+    matched = allocations.dropna(subset=["purchase_excel_row"]).sort_values(["credit_time", "credit_excel_row"])
+    anchors = []
+    for label, credits, keep in [
+        ("first_operational_return", returns, "first"),
+        ("last_operational_return", returns, "last"),
+        ("each_operational_return", returns, None),
+        ("last_matched_credit", matched, "last"),
+    ]:
+        ordered = credits.sort_values(["credit_time", "credit_excel_row"])
+        if keep is not None:
+            ordered = ordered.drop_duplicates("purchase_excel_row", keep=keep)
+        anchored = ordered[["credit_excel_row", "credit_time", "purchase_excel_row",
+                            "purchase_invoice_no", "CustomerID", "StockCode"]].copy()
+        anchored["anchor"] = label
+        anchored["final_quantity"] = anchored["purchase_excel_row"].map(balances_by_row["Quantity"])
+        anchors.append(anchored)
+    all_anchors = pd.concat(anchors, ignore_index=True).rename_axis("anchor_id").reset_index()
+    # One candidate per invoice. The latest line time determines whether any line is strictly later.
+    order_keys = ["CustomerID", "StockCode", "InvoiceNo"]
+    sales = balances.groupby(order_keys, as_index=False)["InvoiceDate"].max().rename(columns={"InvoiceDate": "observed_time"})
+    retained = balances.loc[balances["Quantity"].gt(0)].groupby(order_keys)["InvoiceDate"].max().rename("net_time")
+    orders = sales.join(retained, on=order_keys)
+    pairs = all_anchors.merge(orders, on=["CustomerID", "StockCode"], how="left")
+    distinct = pairs["InvoiceNo"].ne(pairs["purchase_invoice_no"])
+    pairs["later_observed"] = distinct & pairs["observed_time"].gt(pairs["credit_time"])
+    pairs["later_net"] = distinct & pairs["net_time"].gt(pairs["credit_time"])
+    outcomes = pairs.groupby("anchor_id")[["later_observed", "later_net"]].any()
+    annotated = all_anchors.join(outcomes, on="anchor_id")
+    annotated["source_outcome"] = annotated["final_quantity"].gt(0).map({True: "partial", False: "full"})
+    summary = annotated.groupby(["anchor", "source_outcome"], as_index=False).agg(
+        denominator=("anchor_id", "size"), distinct_source_sales=("purchase_excel_row", "nunique"),
+        later_observed=("later_observed", "sum"), later_net=("later_net", "sum"),
+    )
+    summary["unit"] = summary["anchor"].eq("each_operational_return").map({True: "return_credit_row", False: "source_sale_line"})
+    summary["observed_rate"] = summary["later_observed"] / summary["denominator"]
+    summary["net_rate"] = summary["later_net"] / summary["denominator"]
+    return summary
 
 
 def reversal_worksheets(raw):
@@ -59,14 +177,31 @@ def reversal_worksheets(raw):
     source = source.rename(columns={"reason": "metric"}).assign(section="raw_first_rule")
     overview = pd.concat([summary, source], ignore_index=True)
     allocations = evidence["credit_allocations"]
+    historical_ledger = build_signed_ledger(raw, stock_policy="five_digit")
+    historical = match_reversals(historical_ledger, use_balance=False, include_same_time=True)
+    per_credit = compare_return_credit_rows([
+        ("five_digit_independent_inclusive", historical, historical_ledger),
+        (main, allocations, evidence["signed_ledger_b"]),
+    ])
+    controls = pd.concat([evidence["benchmark"], per_credit], ignore_index=True)
+    comparisons, transitions = [], []
+    for window, cutoff in [("training_before_october", "2011-10-01"), ("whole_workbook", None)]:
+        balances = purchase_line_balances(evidence["signed_ledger_b"], allocations, cutoff=cutoff)
+        comparisons.append(retention_comparison(balances).assign(window=window))
+        transitions.append(retention_transitions(balances).assign(window=window))
+        if cutoff is None:
+            repurchases = return_repurchase(balances, allocations)
     return {
         "ledger_summary": overview[["section", "metric", "customer_id_status", "rows", "units", "signed_amount_gbp"]],
         "credit_summary": evidence["region_summary"].loc[lambda x: x["scenario"].eq(main)].drop(columns="scenario"),
         "credit_allocations": allocations,
-        "credit_controls": evidence["benchmark"],
+        "credit_controls": controls,
         "credit_control_rows": evidence["match_differences"],
         "reversal_examples": reversal_examples(allocations),
         "sku_policy_differences": evidence["source_differences"],
+        "retention_comparison": pd.concat(comparisons, ignore_index=True),
+        "retention_transitions": pd.concat(transitions, ignore_index=True),
+        "return_repurchase": repurchases,
     }
 
 

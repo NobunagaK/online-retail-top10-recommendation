@@ -35,12 +35,12 @@ def _monthly(monthly, window):
     figure = Figure(figsize=(11, 7))
     axes = figure.subplots(2, 2, sharex=True).flat
     figure.subplots_adjust(left=0.08, right=0.985, top=0.80, bottom=0.13, hspace=0.35, wspace=0.21)
-    _heading(figure, "Monthly purchasing activity", f"{window}  ·  Month of basket completion")
+    _heading(figure, "Monthly net retained purchases", f"{window}  ·  Month of basket completion")
     panels = [
         ("baskets", "Customer invoices (baskets)"),
         ("basket_item_events", "Distinct items summed across baskets (events)"),
-        ("units", "Quantity purchased (units)"),
-        ("amount_gbp", "Active purchase amount (GBP)"),
+        ("units", "Net retained units"),
+        ("amount_gbp", "Net retained amount at sale prices (GBP)"),
     ]
     month_labels = pd.PeriodIndex(monthly["month"], freq="M").strftime("%b\n%Y")
     for axis, (column, title) in zip(axes, panels):
@@ -58,11 +58,11 @@ def _distributions(distributions, window):
     figure = Figure(figsize=(12, 7.4))
     grid = figure.add_gridspec(2, 6, left=0.075, right=0.975, top=0.785,
                                bottom=0.09, wspace=0.78, hspace=0.52)
-    _heading(figure, "Distribution of purchase lines, baskets and customer histories",
+    _heading(figure, "Distribution of net retained purchase lines, baskets and customer histories",
              f"{window}  ·  Share at or above each observed value  ·  Both axes logarithmic  ·  Full range")
     panels = [
         ("line_unit_price_gbp", "Unit price per purchase line", "GBP per unit", "Purchase lines (%)", grid[0, :3]),
-        ("line_quantity", "Active units per purchase line", "Units", "Purchase lines (%)", grid[0, 3:]),
+        ("line_quantity", "Net retained units per line", "Units", "Purchase lines (%)", grid[0, 3:]),
         ("basket_distinct_skus", "Size of a basket", "Distinct SKUs", "Baskets (%)", grid[1, :2]),
         ("customer_history_events", "Events per customer", "Basket-item events", "Customers (%)", grid[1, 2:4]),
         ("customer_baskets", "Baskets per customer", "Completed baskets", "Customers (%)", grid[1, 4:]),
@@ -93,7 +93,7 @@ def _popularity(popularity, window):
     figure = Figure(figsize=(10.5, 6))
     axis = figure.subplots()
     figure.subplots_adjust(left=0.10, right=0.975, top=0.80, bottom=0.14)
-    _heading(figure, "Item popularity by customer reach",
+    _heading(figure, "Customer reach of net retained products",
              f"{window}  ·  All {len(popularity):,} training SKUs  ·  Logarithmic customer count")
     _style(axis)
     axis.set_xlabel("Item rank by number of distinct purchasing customers")
