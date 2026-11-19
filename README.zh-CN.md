@@ -8,7 +8,7 @@
 
 ### D1 · 筛选之前先分析业务情形
 
-先打开特殊交易分析 notebook，用 CPU 读取原始工作簿。输出 Excel 分别列出 C 前缀、数量非正和单价非正的完整明细，保留原始 Excel 行号。这三个视图允许重叠，另有互斥的符号交叉表用来核对总数。1,336 条非 C 负数量明细有单独的表，可以按时间追查发票与商品、查阅原始备注并对照案例时间线。缺失客户编号与不同口径下的客户活动也分别核查。[分析 notebook](docs/technical/transaction_exception_analysis.ipynb) · [可筛选的 Excel 结果](results/transaction_exceptions.xlsx)
+先打开特殊交易分析 notebook，选择 CPU，用原始工作簿从上往下运行。17 张 Excel 工作表的计算过程均可在代码单元格中查看。输出 Excel 分别列出 C 前缀、数量非正和单价非正的完整明细，保留原始 Excel 行号。这三个视图允许重叠，另有互斥的符号交叉表用来核对总数。1,336 条非 C 负数量明细有单独的表，可以按时间追查发票与商品、查阅原始备注并对照案例时间线。价格分析列出有客户编号的全部 40 条零价明细，逐行检查同票是否还有正价商品，并用发票 `550188` 对照商品 `22636` 的两种单价。后续章节分析异常记录对客户活动统计的影响。[分析 notebook](docs/technical/transaction_exception_analysis.ipynb) · [可筛选的 Excel 结果](results/transaction_exceptions.xlsx)
 
 运行后，Drive 项目目录下会生成 `results/transaction_exceptions.xlsx`。本地可在仓库根目录执行 `python -m scripts.analyze_exceptions`。此次调查读取全部原始行，包含完全重复的行。下方五步审计衡量的是从正向购买样本剔除记录时影响了多少行。两项操作都保留原始工作簿。
 

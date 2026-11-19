@@ -97,6 +97,7 @@ def build_tables(raw: pd.DataFrame) -> dict[str, pd.DataFrame]:
         ("same-customer opposite entries", ["541431", "C541433"], "23166"),
         ("discount credit", ["C536379"], "D"),
         ("zero recorded unit price", ["539722"], "22423"),
+        ("same invoice and SKU at two prices", ["550188"], "22636"),
         ("bad-debt entries", ["A563185", "A563186", "A563187"], "B"),
         ("explicit credit note and later adjustments", ["C550456", "554550", "554551", "554553"], "47566B"),
         ("stock-code discrepancy in description", ["560039"], "20713"),
