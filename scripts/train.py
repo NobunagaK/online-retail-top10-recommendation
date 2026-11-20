@@ -156,7 +156,17 @@ def run_model(args, out):
         "training_queries_sha256": ordered_hash(data.train_queries.query_id),
         "validation_queries_sha256": ordered_hash(data.val_queries.query_id),
     }
+    # Resuming an optimizer must use the same effective inputs and ranking code.
+    # For example, a new padding rule can change histories even for identical Parquet files.
+    backend_packages = ["lightgbm", "scikit-learn"] if args.model == "lightgbm" else ["torch"]
+    if args.model == "mamba4rec":
+        backend_packages += ["mamba-ssm", "causal-conv1d"]
+    signature_fields["runtime_versions"] = {
+        name: versions.get(name) for name in ["numpy", "pandas", "pyarrow", *backend_packages]}
+    signature_fields["runtime_versions"]["python"] = hardware["python"]
     sources = [Path(__file__).resolve(), ROOT / "src/evaluation/ranking.py",
+               ROOT / "src/data/sequences.py", ROOT / "src/data/monthly_queries.py",
+               ROOT / "scripts/build_queries.py",
                *sorted((ROOT / "src/models").glob("*.py")), *sorted((ROOT / "src/features").glob("*.py"))]
     signature_fields["source_sha256"] = ordered_hash([(str(p.relative_to(ROOT)), digest(p)) for p in sources])
     signature = hashlib.sha256(json.dumps(signature_fields, sort_keys=True).encode()).hexdigest()
