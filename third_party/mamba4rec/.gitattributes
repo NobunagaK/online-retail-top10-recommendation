@@ -1,3 +1,3 @@
-# These two upstream files are checked byte-for-byte, including their original whitespace.
+# The source and license are checksummed against the authors' original bytes.
 mamba4rec.py -text -whitespace
 LICENSE -text
