@@ -126,7 +126,8 @@ def run_model(args, out):
     random.seed(seed)
     np.random.seed(seed)
     versions = {}
-    for pkg in ("torch", "lightgbm", "scikit-learn", "numpy", "pandas", "pyarrow", "mamba-ssm", "causal-conv1d"):
+    for pkg in ("torch", "lightgbm", "scikit-learn", "numpy", "pandas", "pyarrow", "recbole",
+                "mamba-ssm", "causal-conv1d", "triton", "transformers"):
         try:
             versions[pkg] = metadata.version(pkg)
         except metadata.PackageNotFoundError:
@@ -159,8 +160,16 @@ def run_model(args, out):
     # Resuming an optimizer must use the same effective inputs and ranking code.
     # For example, a new padding rule can change histories even for identical Parquet files.
     backend_packages = ["lightgbm", "scikit-learn"] if args.model == "lightgbm" else ["torch"]
+    model_module = importlib.import_module(f"src.models.{MODULES[args.model]}")
+    if args.model in {"lrurec", "mamba4rec"}:
+        signature_fields["upstream_model"] = {
+            "repository": "yueqirex/LRURec" if args.model == "lrurec" else "chengkai-liu/Mamba4Rec",
+            "class": "LRU" if args.model == "lrurec" else "Mamba4Rec",
+            "commit": model_module.UPSTREAM_COMMIT,
+            "source_sha256": model_module.UPSTREAM_SHA256,
+        }
     if args.model == "mamba4rec":
-        backend_packages += ["mamba-ssm", "causal-conv1d"]
+        backend_packages += ["recbole", "mamba-ssm", "causal-conv1d", "triton", "transformers"]
     signature_fields["runtime_versions"] = {
         name: versions.get(name) for name in ["numpy", "pandas", "pyarrow", *backend_packages]}
     signature_fields["runtime_versions"]["python"] = hardware["python"]
@@ -193,7 +202,7 @@ def run_model(args, out):
     write_json(run_path, dict(base, status="running"))
     suffix = ".txt" if args.model == "lightgbm" else ".pt"
     try:
-        factory = importlib.import_module(f"src.models.{MODULES[args.model]}").make_model
+        factory = model_module.make_model
         model = factory(data, config, device)
         rows, best, best_epoch = [], -math.inf, 0
         def state_file(epoch):

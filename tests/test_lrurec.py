@@ -1,63 +1,82 @@
-"""LRURec accuracy, left padding and parity with the pinned research implementation."""
+"""Exercise the actual pinned LRURec encoder, monthly training and candidate scoring."""
 
-import hashlib
-import importlib.util
-import os
-from pathlib import Path
+from copy import deepcopy
+from io import BytesIO
 from types import SimpleNamespace
 
+import numpy as np
+import pandas as pd
 import pytest
 
 torch = pytest.importorskip("torch")
+
+from src.models import lrurec_source
 from src.models.lrurec_adapter import LRURec
-from src.models.sequence_objective import multi_positive_loss
-
-REFERENCE_SHA256 = "149e0ccfe03c7eba7a51bf405d179f8a3f395011c0f730169aec2b59c9c156b1"
+from src.models.sequence_objective import SequenceRunner, multi_positive_loss
 
 
-def test_scan_matches_direct_complex_recurrence():
-    torch.manual_seed(7)
-    model = LRURec(9, hidden_dim=5, num_layers=1, dropout=0).eval()
-    layer = model.blocks[0]
-    x = torch.randn(2, 7, 5)
-    valid = torch.tensor([[False, False, False, False, True, True, True], [True] * 7])
-    decay, phase, scale = layer.log_dynamics.exp().unbind()
-    transition = torch.exp(torch.complex(-decay, phase))
-    state = torch.zeros(2, 10, dtype=torch.complex64)
-    values = []
-    for t in range(x.size(1)):
-        add = layer.input_projection(x[:, t].to(torch.complex64)) * scale
-        state = torch.where(valid[:, t, None], transition * state + add, 0)
-        values.append(layer.output_projection(state).real)
-    residual = layer.recurrent_norm(x + torch.stack(values, dim=1))
-    expected = layer.feedforward_norm(residual + layer.contract(torch.nn.functional.gelu(layer.expand(residual))))
-    expected = expected.masked_fill(~valid.unsqueeze(-1), 0)
-    torch.testing.assert_close(layer(x, valid), expected, rtol=2e-5, atol=2e-6)
+def test_verified_source_cache_reuse_and_tamper_detection(tmp_path, monkeypatch):
+    # Bootstrap from the same verified source used in training, then exercise a fresh offline cache.
+    _, original = lrurec_source.read_source()
+    monkeypatch.delenv("LRUREC_REFERENCE_FILE", raising=False)
+    monkeypatch.setenv("LRUREC_CACHE_DIR", str(tmp_path))
+    with pytest.raises(FileNotFoundError):
+        lrurec_source.read_source(offline=True)
+
+    def fetch(url, *, timeout):
+        assert url == lrurec_source.SOURCE_URL
+        return BytesIO(original)
+
+    monkeypatch.setattr(lrurec_source, "urlopen", fetch)
+    path, content = lrurec_source.read_source()
+    assert content == original == path.read_bytes()
+
+    def unexpected_fetch(*args, **kwargs):
+        pytest.fail("A cached source must not trigger a download")
+
+    monkeypatch.setattr(lrurec_source, "urlopen", unexpected_fetch)
+    assert lrurec_source.read_source(offline=True) == (path, original)
+    path.write_bytes(original + b"\n")
+    with pytest.raises(ValueError, match="SHA-256"):
+        lrurec_source.load_lru_class()
+
+
+def test_raw_scores_against_pinned_upstream():
+    torch.manual_seed(23)
+    model = LRURec(11, hidden_dim=8, num_layers=2, dropout=0).eval()
+    assert model.upstream.__class__.__name__ == "LRU"
+    ids = torch.tensor([[0, 0, 1, 2, 1], [0, 0, 0, 0, 3], [5, 2, 3, 4, 6]])
+    candidates = torch.arange(1, 12)
+    with torch.no_grad():
+        reference, _ = model.upstream(ids)
+        last = model.encode(ids, ids.ne(0).sum(1))[:, -1]
+        chunks = [model.score_items(last, chunk) for chunk in candidates.split(4)]
+    # 3 different histories x 11 real items, including purchases appearing in the histories.
+    torch.testing.assert_close(torch.cat(chunks, dim=1), reference[:, -1, 1:], rtol=2e-5, atol=2e-6)
 
 
 def test_padding_ragged_batch_repeats_and_checkpoint(tmp_path):
     torch.manual_seed(19)
     model = LRURec(11, hidden_dim=8, num_layers=2, dropout=0.2).eval()
     ids = torch.tensor([[0, 0, 0, 0, 1, 2, 1], [0, 3, 7, 1, 8, 8, 6], [0] * 7])
-    states = model.encode(ids, torch.tensor([3, 6, 0]))
+    lengths = torch.tensor([3, 6, 0])
+    states = model.encode(ids, lengths)
     single = model.encode(torch.tensor([[1, 2, 1]]), torch.tensor([3]))
     torch.testing.assert_close(states[0, -3:], single[0], rtol=2e-5, atol=2e-6)
     assert torch.count_nonzero(states[0, :-3]) == 0 and torch.count_nonzero(states[2]) == 0
     items = torch.tensor([1, 2, 6, 11])
     scores = model.score_items(states[:, -1], items)
-    expected = states[:, -1] @ model.item_embedding.weight[items].T + model.output_bias[items]
-    torch.testing.assert_close(scores, expected)
-    # Repeated item 1 in the history keeps its raw score in column 0.
-    torch.testing.assert_close(scores[:1], model.score_items(single[:, -1], items), rtol=2e-5, atol=2e-6)
     path = tmp_path / "lrurec.pt"
     torch.save(model.state_dict(), path)
     restored = LRURec(11, hidden_dim=8, num_layers=2, dropout=0.2).eval()
     restored.load_state_dict(torch.load(path, map_location="cpu", weights_only=True))
-    recovered = restored.score_items(restored.encode(ids, torch.tensor([3, 6, 0]))[:, -1], items)
+    recovered = restored.score_items(restored.encode(ids, lengths)[:, -1], items)
     torch.testing.assert_close(scores, recovered, rtol=0, atol=0)
+    with pytest.raises(ValueError, match="zeros on the left"):
+        model.encode(torch.tensor([[1, 2, 0]]), torch.tensor([2]))
 
 
-def test_monthly_loss_backpropagates_to_recurrence_tied_weights_and_bias():
+def test_monthly_loss_backpropagates_to_author_encoder_tied_weights_and_bias():
     torch.manual_seed(31)
     model = LRURec(6, hidden_dim=8, num_layers=1, dropout=0)
     ids = torch.tensor([[0, 1, 2, 1], [2, 4, 3, 5]])
@@ -65,45 +84,42 @@ def test_monthly_loss_backpropagates_to_recurrence_tied_weights_and_bias():
     scores = model.score_items(state, torch.arange(1, 7))
     loss = multi_positive_loss(scores, list(range(1, 7)), [[1, 3], [4]])
     loss.backward()
-    for p in (model.blocks[0].log_dynamics, model.blocks[0].input_projection.weight,
-              model.item_embedding.weight, model.output_bias):
-        assert torch.isfinite(p.grad).all() and p.grad.abs().sum() > 0
+    recurrence = model.upstream.model.lru_blocks[0].lru_layer
+    for param in (recurrence.params_log, recurrence.in_proj.weight, model.item_embedding.weight, model.output_bias):
+        assert torch.isfinite(param.grad).all() and param.grad.abs().sum() > 0
     assert torch.count_nonzero(model.item_embedding.weight.grad[0]) == 0
 
 
-def test_raw_scores_against_pinned_upstream():
-    """Supply the authors' original model/lru.py through LRUREC_REFERENCE_FILE."""
-    location = os.environ.get("LRUREC_REFERENCE_FILE")
-    if not location:
-        pytest.skip("Set LRUREC_REFERENCE_FILE to the pinned authors' model/lru.py for parity testing.")
-    path = Path(location)
-    assert hashlib.sha256(path.read_bytes()).hexdigest() == REFERENCE_SHA256
-    spec = importlib.util.spec_from_file_location("pinned_lrurec_reference", path)
-    reference = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(reference)
+def test_chunked_runner_reuses_encoding_and_matches_author_with_item_fallback():
+    # Items 1 and 6 are history-only and need bias fallback; 7 and 8 need both fallbacks.
+    candidates = [8, 1, 3, 4, 2, 7]
+    data = SimpleNamespace(
+        vocab=pd.DataFrame({"item_id": range(1, 9)}),
+        train_queries=pd.DataFrame({"query_id": ["a"], "catalog_id": ["train"], "split": ["train"]}),
+        catalog_ids={"train": [2, 3, 4], "val": candidates},
+        histories_by_query={"a": [1, 6], "b": [2, 7, 2]}, positives={"a": [2, 3]},
+    )
+    torch.manual_seed(17)
+    model = LRURec(8, hidden_dim=8, num_layers=1, dropout=0)
+    runner = SequenceRunner(model, data, padding="left", max_length=5)
+    runner.train_epoch()
+    assert runner.supported_items == {1, 2, 3, 4, 6}
+    assert set(runner.catalog_support.nonzero().flatten().tolist()) == {2, 3, 4}
 
-    torch.manual_seed(23)
-    args = SimpleNamespace(num_items=11, bert_hidden_units=8, bert_num_blocks=2,
-                           bert_dropout=0.0, bert_attn_dropout=0.0, dataset_code="retail")
-    official = reference.LRU(args).eval()
-    model = LRURec(11, hidden_dim=8, num_layers=2, dropout=0).eval()
+    # Build a full-forward oracle with the two different support masks measured during training.
+    ref = deepcopy(model.upstream).eval()
     with torch.no_grad():
-        model.item_embedding.load_state_dict(official.embedding.token.state_dict())
-        model.input_norm.load_state_dict(official.embedding.layer_norm.state_dict())
-        model.output_bias.copy_(official.model.bias)
-        for target, origin in zip(model.blocks, official.model.lru_blocks, strict=True):
-            target.log_dynamics.copy_(origin.lru_layer.params_log)
-            for ours, theirs in (
-                (target.input_projection, origin.lru_layer.in_proj),
-                (target.output_projection, origin.lru_layer.out_proj),
-                (target.recurrent_norm, origin.lru_layer.layer_norm),
-                (target.expand, origin.feed_forward.w_1),
-                (target.contract, origin.feed_forward.w_2),
-                (target.feedforward_norm, origin.feed_forward.layer_norm),
-            ):
-                ours.load_state_dict(theirs.state_dict())
-        ids = torch.tensor([[0, 0, 1, 2, 1], [0, 0, 0, 0, 3], [5, 2, 3, 4, 6]])
-        valid_items = torch.arange(1, 12)
-        expected, _ = official(ids)
-        actual = model.score_items(model.encode(ids, ids.ne(0).sum(1))[:, -1], valid_items)
-        torch.testing.assert_close(actual, expected[:, -1, 1:], rtol=2e-5, atol=2e-6)
+        weights = ref.embedding.token.weight
+        weights[[5, 7, 8]] = weights[[1, 2, 3, 4, 6]].mean(0)
+        ref.model.bias[[1, 5, 6, 7, 8]] = ref.model.bias[[2, 3, 4]].mean()
+        reference, _ = ref(torch.tensor([[0, 0, 2, 7, 2]]))
+
+    encoded = []
+    hook = model.upstream.embedding.register_forward_hook(lambda *args: encoded.append(1))
+    query = SimpleNamespace(query_id="b", catalog_id="val")
+    try:
+        actual = np.r_[runner.score(query, candidates[:3]), runner.score(query, candidates[3:])]
+    finally:
+        hook.remove()
+    assert len(encoded) == 1
+    np.testing.assert_allclose(actual, reference[0, -1, candidates].numpy(), rtol=2e-5, atol=2e-6)

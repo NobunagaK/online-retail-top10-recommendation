@@ -1,0 +1,7 @@
+# Install the CUDA build of torch 2.6.0 first, then the two native wheels
+# selected for that build by notebooks/model_pilots.ipynb.
+-r requirements-models.txt
+recbole==1.2.0
+transformers==4.48.3
+einops
+packaging

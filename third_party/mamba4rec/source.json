@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/chengkai-liu/Mamba4Rec",
+  "commit": "44a0c8432b34e3b89d46035b10e8525b1bd368dc",
+  "sha256": {
+    "mamba4rec.py": "5cfb15241ad3608ef21e7abd9739ad03b363c10759dcdf136aa02305392c91f2",
+    "LICENSE": "65c0a100568c59694b1607ab10393fc92117cbf76026a0f027e048ebe520d5fe"
+  }
+}

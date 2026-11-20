@@ -75,7 +75,10 @@ class _SequenceScores(nn.Module):
     def forward(self, sequence, lengths, items, state=None):
         if state is None:
             states = self.network.encode(sequence, lengths)
-            state = last_valid_state(states, lengths, self.padding)
+            # Mamba4Rec's own forward already selects the last real item.
+            state = states if states.ndim == 2 else last_valid_state(states, lengths, self.padding)
+            if state.shape != (len(lengths), self.network.item_embedding.embedding_dim):
+                raise ValueError("The encoder must return one final hidden vector per sequence.")
         return self.network.score_items(state, items), state
 
 
@@ -105,6 +108,12 @@ class SequenceRunner:
         self.device = torch.device(device)
         self.network = network.to(self.device)
         self._scores = _SequenceScores(self.network, padding)
+        # The adapters expose the authors' original parameters through properties.
+        # functional_call needs their registered paths inside the scoring module.
+        parameter_names = {id(param): name for name, param in self._scores.named_parameters()}
+        self._embedding_path = parameter_names[id(self.network.item_embedding.weight)]
+        bias = getattr(self.network, "output_bias", None)
+        self._bias_path = parameter_names[id(bias)] if bias is not None else None
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=learning_rate, weight_decay=weight_decay)
         self._order = torch.Generator(device="cpu").manual_seed(self.seed)
         self.epoch = 0
@@ -227,11 +236,11 @@ class SequenceRunner:
         if not set(ids).issubset(self.data.catalog_ids[query.catalog_id]):
             raise ValueError("Requested scores must belong to the query's cutoff-specific catalog.")
         if self._inference_weights is None:
-            self._inference_weights = {"network.item_embedding.weight": _mean_substitution(
+            self._inference_weights = {self._embedding_path: _mean_substitution(
                 self.network.item_embedding.weight, self.input_support | self.catalog_support)}
-            bias = getattr(self.network, "output_bias", None)
-            if bias is not None:
-                self._inference_weights["network.output_bias"] = _mean_substitution(bias, self.catalog_support)
+            if self._bias_path is not None:
+                self._inference_weights[self._bias_path] = _mean_substitution(
+                    self.network.output_bias, self.catalog_support)
         state = self._cached_state if query.query_id == self._cached_query_id else None
         sequence, lengths = (None, None) if state is not None else self._history_batch(self.data, [query.query_id])
         items = torch.tensor(ids, dtype=torch.long, device=self.device)
@@ -243,7 +252,8 @@ class SequenceRunner:
         return logits[0].to(device="cpu", dtype=torch.float64).numpy()
 
     def _settings(self):
-        return {"network": type(self.network).__name__, "padding": self.padding,
+        return {"network": type(self.network).__name__, "embedding_path": self._embedding_path,
+                "bias_path": self._bias_path, "padding": self.padding,
                 "max_length": self.max_length, "batch_size": self.batch_size,
                 "vocab": self.data.vocab.sort_values("item_id")[["item_id", "stock_code"]].values.tolist()}
 

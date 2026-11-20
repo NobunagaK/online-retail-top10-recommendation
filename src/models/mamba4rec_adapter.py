@@ -1,6 +1,7 @@
 """Mamba4Rec (Liu et al., 2024) adapted to the project's monthly catalog and shared loss."""
 
 import argparse
+import hashlib
 from importlib import metadata
 import io
 import json
@@ -10,7 +11,25 @@ import shutil
 import subprocess
 
 
-UPSTREAM_COMMIT = "44a0c8432b34e3b89d46035b10e8525b1bd368dc"
+SOURCE_DIR = Path(__file__).resolve().parents[2] / "third_party" / "mamba4rec"
+SOURCE = json.loads((SOURCE_DIR / "source.json").read_text(encoding="utf-8"))
+UPSTREAM_COMMIT = SOURCE["commit"]
+UPSTREAM_SHA256 = SOURCE["sha256"]["mamba4rec.py"]
+
+
+def verify_upstream_files(directory=SOURCE_DIR):
+    """Require the original recommender and its MIT notice to match the pinned bytes."""
+    for name, expected in SOURCE["sha256"].items():
+        if hashlib.sha256((directory / name).read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Mamba4Rec upstream SHA-256 mismatch for {name}")
+
+
+def _recbole_imports():
+    # The authors import both at module scope, even when the project supplies the loss.
+    from recbole.model.abstract_recommender import SequentialRecommender
+    from recbole.model.loss import BPRLoss
+
+    return {"base": SequentialRecommender.__module__, "loss": BPRLoss.__module__}
 
 
 def _preflight_cli():
@@ -20,7 +39,7 @@ def _preflight_cli():
     args = parser.parse_args()
     report = {"upstream_commit": UPSTREAM_COMMIT, "python": platform.python_version(),
               "platform": platform.platform(), "packages": {}}
-    for package in ["torch", "mamba-ssm", "causal-conv1d", "triton", "transformers"]:
+    for package in ["torch", "recbole", "numpy", "mamba-ssm", "causal-conv1d", "triton", "transformers"]:
         try:
             report["packages"][package] = metadata.version(package)
         except metadata.PackageNotFoundError:
@@ -36,6 +55,14 @@ def _preflight_cli():
             except (OSError, subprocess.TimeoutExpired):
                 pass
     try:
+        verify_upstream_files()
+        report["upstream_sha256"] = UPSTREAM_SHA256
+        report["upstream_class"] = "third_party.mamba4rec.mamba4rec.Mamba4Rec"
+        try:
+            report["recbole_imports"] = {"status": "passed", **_recbole_imports()}
+        except Exception as error:
+            report["recbole_imports"] = {"status": "failed", "error_type": type(error).__name__,
+                                         "error": str(error)}
         # Defer GPU imports so even a missing Torch or broken native extension is recorded.
         import torch
         from src.models.mamba4rec_adapter import run_gpu_preflight
@@ -46,6 +73,8 @@ def _preflight_cli():
             report["gpu"] = torch.cuda.get_device_name()
             report["compute_capability"] = list(torch.cuda.get_device_capability())
             report["device_memory_bytes"] = torch.cuda.get_device_properties(0).total_memory
+            if report["recbole_imports"]["status"] != "passed":
+                raise RuntimeError(f"Official RecBole import failed: {report['recbole_imports']['error']}")
         report.update(run_gpu_preflight())
         report["status"] = "passed"
     except Exception as error:
@@ -66,7 +95,7 @@ import torch
 from torch import nn
 
 
-def _native_mamba():
+def _require_native_kernels():
     """Require the authors' Mamba-1 path and both native operations used by its fused block."""
     try:
         from mamba_ssm.modules import mamba_simple
@@ -80,67 +109,48 @@ def _native_mamba():
             or getattr(selective_scan_interface, "causal_conv1d_fwd_function", None) is None
             or getattr(selective_scan_interface, "selective_scan_cuda", None) is None):
         raise RuntimeError("Mamba selective scan and native causal-conv1d must both be available.")
-    return mamba_simple.Mamba
 
 
-class MambaBlock(nn.Module):
-    """Selective state-space block and the position-wise feed-forward block in Mamba4Rec."""
+class _RetailVocabulary:
+    """Supply the one dataset method read by RecBole's SequentialRecommender."""
 
-    def __init__(self, operator, dim, layers, dropout, d_state, d_conv, expand):
-        super().__init__()
-        self.mamba = operator(d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand,
-                              use_fast_path=True)
-        self.stacked = layers > 1
-        self.dropout = nn.Dropout(dropout)
-        self.mixer_norm = nn.LayerNorm(dim, eps=1e-12)
-        self.expand = nn.Linear(dim, 4 * dim)
-        self.contract = nn.Linear(4 * dim, dim)
-        self.activation = nn.GELU()
-        self.output_norm = nn.LayerNorm(dim, eps=1e-12)
+    def __init__(self, real_items):
+        self.rows = real_items + 1  # the shared D2 vocabulary reserves ID 0 for PAD
 
-    def forward(self, inputs):
-        mixed = self.dropout(self.mamba(inputs))
-        if self.stacked:
-            mixed = mixed + inputs
-        hidden = self.mixer_norm(mixed)
-        feedforward = self.dropout(self.activation(self.expand(hidden)))
-        return self.output_norm(hidden + self.dropout(self.contract(feedforward)))
+    def num(self, field):
+        if field != "item_id":
+            raise KeyError(field)
+        return self.rows
 
 
 class Mamba4Rec(nn.Module):
-    """Causal network with a tied item embedding and the original dot-product scoring head."""
+    """Adapt D2 batches to the authors' RecBole recommender and tied scoring head."""
 
     def __init__(self, num_items, *, hidden_dim=64, num_layers=2, dropout=0.2,
-                 d_state=16, d_conv=4, expand=2):
+                 d_state=16, d_conv=4, expand=2, max_length=64, device="cuda"):
         super().__init__()
-        if min(num_items, hidden_dim, num_layers, d_state, expand) < 1 or d_conv not in (2, 3, 4):
+        if min(num_items, hidden_dim, num_layers, d_state, expand, max_length) < 1 or d_conv not in (2, 3, 4):
             raise ValueError("Use positive model dimensions and a native causal kernel width of 2, 3 or 4.")
-        operator = _native_mamba()
-        self.item_embedding = nn.Embedding(num_items + 1, hidden_dim, padding_idx=0)
-        self.input_dropout = nn.Dropout(dropout)
-        self.input_norm = nn.LayerNorm(hidden_dim, eps=1e-12)
-        self.blocks = nn.ModuleList(
-            MambaBlock(operator, hidden_dim, num_layers, dropout, d_state, d_conv, expand)
-            for _ in range(num_layers)
-        )
-        self.apply(self._init_weights)
-        with torch.no_grad():
-            self.item_embedding.weight[0].zero_()
+        verify_upstream_files()
+        _require_native_kernels()
+        from third_party.mamba4rec.mamba4rec import Mamba4Rec as AuthorsMamba4Rec
 
-    @staticmethod
-    def _init_weights(module):
-        # Match the recommender's initialization after constructing each official Mamba block.
-        if isinstance(module, (nn.Linear, nn.Embedding)):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02)
-        if isinstance(module, nn.Linear) and module.bias is not None:
-            nn.init.zeros_(module.bias)
-        if isinstance(module, nn.LayerNorm):
-            nn.init.zeros_(module.bias)
-            nn.init.ones_(module.weight)
+        config = {
+            "USER_ID_FIELD": "customer_id", "ITEM_ID_FIELD": "item_id",
+            "LIST_SUFFIX": "_list", "ITEM_LIST_LENGTH_FIELD": "item_length",
+            "NEG_PREFIX": "neg_", "MAX_ITEM_LIST_LENGTH": max_length, "device": torch.device(device),
+            "hidden_size": hidden_dim, "num_layers": num_layers, "dropout_prob": dropout,
+            "d_state": d_state, "d_conv": d_conv, "expand": expand, "loss_type": "CE",
+        }
+        self.upstream = AuthorsMamba4Rec(config, _RetailVocabulary(num_items))
+
+    @property
+    def item_embedding(self):
+        return self.upstream.item_embedding
 
     def encode(self, item_ids, lengths):
-        """Return every causal hidden state. The shared runner selects length - 1 for nonempty rows."""
-        if item_ids.ndim != 2 or lengths.shape != item_ids.shape[:1]:
+        """Use the authors' last-valid-position selection; an empty D2 history has a zero state."""
+        if item_ids.ndim != 2 or item_ids.size(1) == 0 or lengths.shape != item_ids.shape[:1]:
             raise ValueError("Supply a right-padded ID matrix with one valid length per history.")
         if not item_ids.is_cuda:
             raise RuntimeError("Mamba4Rec requires a CUDA device and the native Mamba kernels.")
@@ -148,19 +158,20 @@ class Mamba4Rec(nn.Module):
         valid = positions.unsqueeze(0) < lengths.unsqueeze(1)
         if lengths.lt(0).any() or lengths.gt(item_ids.size(1)).any() or not torch.equal(valid, item_ids.ne(0)):
             raise ValueError("Each Mamba4Rec history requires its real items first, then zero padding.")
-        hidden = self.input_norm(self.input_dropout(self.item_embedding(item_ids)))
-        for block in self.blocks:
-            hidden = block(hidden)
-        return hidden.masked_fill(~valid.unsqueeze(-1), 0)
+        # RecBole gathers length - 1; steer empty rows to a valid index before ignoring their state.
+        state = self.upstream(item_ids, lengths.clamp_min(1))
+        return state.masked_fill(lengths.eq(0).unsqueeze(1), 0)
 
     def score_items(self, last_hidden, item_ids):
+        # Same weights and dot product as full_sort_predict, restricted to this D2 candidate block.
         return last_hidden @ self.item_embedding(item_ids).T
 
 
-def build_model(num_items, config):
+def build_model(num_items, config, device="cuda"):
     return Mamba4Rec(num_items, hidden_dim=config.get("hidden_dim", 64), num_layers=config.get("num_layers", 2),
                      dropout=config.get("dropout", 0.2), d_state=config.get("d_state", 16),
-                     d_conv=config.get("d_conv", 4), expand=config.get("expand", 2))
+                     d_conv=config.get("d_conv", 4), expand=config.get("expand", 2),
+                     max_length=config.get("max_length", 64), device=device)
 
 
 def make_model(data, config, device):
@@ -170,7 +181,7 @@ def make_model(data, config, device):
         raise RuntimeError("Select an NVIDIA GPU runtime for Mamba4Rec and run its native preflight.")
     seed = config.get("seed", 42)
     torch.manual_seed(seed)
-    network = build_model(int(data.vocab["item_id"].max()), config)
+    network = build_model(int(data.vocab["item_id"].max()), config, device)
     return SequenceRunner(network, data, padding="right", max_length=config.get("max_length", 64),
                           learning_rate=config.get("learning_rate", 0.001),
                           weight_decay=config.get("weight_decay", 0.01),
@@ -181,7 +192,7 @@ def run_gpu_preflight():
     """Prove native forward/backward, encoder and output-row updates, right padding and reload."""
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable. Run the preflight in an NVIDIA GPU runtime.")
-    from src.models.sequence_objective import last_valid_state, multi_positive_loss
+    from src.models.sequence_objective import multi_positive_loss
 
     device = torch.device("cuda")
     torch.manual_seed(42)
@@ -193,17 +204,16 @@ def run_gpu_preflight():
     positive_ids = [[1, 4], [4]]
 
     def scores(tokens, sizes):
-        states = model.encode(tokens, sizes)
-        return model.score_items(last_valid_state(states, sizes, "right"), catalog)
+        return model.score_items(model.encode(tokens, sizes), catalog)
 
     initial = scores(ids, lengths)
     loss = multi_positive_loss(initial, catalog, positive_ids)
     loss.backward()
-    mixer = model.blocks[0].mamba.in_proj.weight
+    mixer = model.upstream.mamba_layers[0].mamba.in_proj.weight
     head = model.item_embedding.weight
     grad_norms = {
         "mamba_input_projection": mixer.grad.norm().item(),
-        "mamba_transition_log": model.blocks[0].mamba.A_log.grad.norm().item(),
+        "mamba_transition_log": model.upstream.mamba_layers[0].mamba.A_log.grad.norm().item(),
         "output_only_item_4": head.grad[4].norm().item(),
     }
     if not torch.isfinite(loss) or not all(0 < x < float("inf") for x in grad_norms.values()):
@@ -219,6 +229,10 @@ def run_gpu_preflight():
     model.eval()
     with torch.no_grad():
         reference = scores(ids, lengths)
+        upstream_scores = model.upstream.full_sort_predict({
+            model.upstream.ITEM_SEQ: ids, model.upstream.ITEM_SEQ_LEN: lengths,
+        })[:, catalog]
+        torch.testing.assert_close(reference, upstream_scores, atol=1e-5, rtol=1e-5)
         short = scores(ids[:1, :3], lengths[:1])
         torch.testing.assert_close(short[0], reference[0], atol=1e-4, rtol=1e-4)
         # Serialize through Torch's checkpoint format, then score with newly constructed weights.
@@ -232,6 +246,7 @@ def run_gpu_preflight():
     torch.cuda.synchronize()
     return {"backend": "mamba_ssm.modules.mamba_simple.Mamba", "loss": loss.item(),
             "grad_norms": grad_norms, "encoder_and_output_updated": True,
+            "upstream_full_sort_max_abs_error": (reference - upstream_scores).abs().max().item(),
             "padding_max_abs_error": (short[0] - reference[0]).abs().max().item(),
             "reload_max_abs_error": (reloaded - reference).abs().max().item(),
             "trainable_parameters": sum(p.numel() for p in model.parameters() if p.requires_grad)}
