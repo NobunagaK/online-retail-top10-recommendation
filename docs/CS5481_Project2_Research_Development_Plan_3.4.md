@@ -6,7 +6,7 @@
 
 给定客户在截止日前的购买历史，为指定的后续月份推荐 10 种商品，目标是在该月购买、且到月末扣除已匹配冲销后仍有正余量的商品。正式实验并列比较 **MF、LightGBM、LRURec 和 Mamba4Rec**。四个模型各自训练、独立给同一批客户和候选商品打分，都参加验证选模和最终测试。
 
-**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。D1 训练期 EDA 覆盖 2010 年 12 月 1 日至 2011 年 9 月 30 日完成的正价商品购物篮，第 2 节记录实测结果。D2 在 CPU 上构建各截止点的历史、候选、查询及独立存储的训练与验证标签。D3 至 D5 先完成四个模型的代码，再按 MF、LightGBM、LRURec、Mamba4Rec 顺序逐个验收。MF、LightGBM、LRURec 已通过本地 CPU 试训，两种序列模型在 Colab NVIDIA GPU 上的验收待完成。D6 正式调参、选模及测试待开展。
+**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。D1 训练期 EDA 覆盖 2010 年 12 月 1 日至 2011 年 9 月 30 日完成的正价商品购物篮，第 2 节记录实测结果。D2 在 CPU 上构建各截止点的历史、候选、查询及独立存储的训练与验证标签。D3 至 D5 先完成四个模型的代码，再按 MF、LightGBM、LRURec、Mamba4Rec 顺序逐个验收。MF、LightGBM 和作者版本 LRURec 已有 CPU 试训记录。当前 D5 实现直接实例化作者固定版本的模型类。两种序列模型在 Colab NVIDIA GPU 上的验收待完成。D6 正式调参、选模及测试待开展。
 
 [研究计划](#research) · [代码开发计划](#development) · [评分与提交清单](#submission) · [材料与来源](#sources)
 
@@ -98,9 +98,9 @@ $$
 \mathcal L(q)=-\frac{1}{|Y_q|}\sum_{i\in Y_q}\log\frac{\exp(s_{q,i})}{\sum_{j\in I(q)}\exp(s_{q,j})}
 $$
 
-**LRURec 接口。** 已核对作者提交 `e02a559bd8c42342f5c53d69cefea2589becb22c`。按作者实现左补 0，读取最右的有效状态，用共享商品嵌入点积加商品偏置打分。上游常规评价路径把历史商品分数设为极低值，项目评价器须绕开这一步，仅排除 PAD 和目录外商品。从同一组权重核对项目的末位置分数与上游屏蔽前分数一致。用历史 `[A,B,A]`、目标含 `A` 的合成例验证 A 保留原分数并有资格进入 Top-10。[作者评分头](https://github.com/yueqirex/LRURec/blob/e02a559bd8c42342f5c53d69cefea2589becb22c/model/lru.py#L72-L87) · [作者评价器](https://github.com/yueqirex/LRURec/blob/e02a559bd8c42342f5c53d69cefea2589becb22c/trainer/lru.py#L39-L49) · [论文](https://doi.org/10.1145/3616855.3635760)
+**LRURec 接口。** 直接实例化作者提交 `e02a559bd8c42342f5c53d69cefea2589becb22c` 中的 `LRU` 类。首次获取后，在本地或 Drive 缓存中按 SHA-256 核验并复用源码。按作者实现左补 0，读取最右的有效状态，用共享商品嵌入点积加商品偏置打分。上游常规评价路径把历史商品分数设为极低值，项目评价器须绕开这一步，仅排除 PAD 和目录外商品。从同一组权重核对项目的末位置分数与上游屏蔽前分数一致。用历史 `[A,B,A]`、目标含 `A` 的合成例验证 A 保留原分数并有资格进入 Top-10。[作者评分头](https://github.com/yueqirex/LRURec/blob/e02a559bd8c42342f5c53d69cefea2589becb22c/model/lru.py#L72-L87) · [作者评价器](https://github.com/yueqirex/LRURec/blob/e02a559bd8c42342f5c53d69cefea2589becb22c/trainer/lru.py#L39-L49) · [论文](https://doi.org/10.1145/3616855.3635760)
 
-**Mamba4Rec 接口。** 已核对作者提交 `44a0c8432b34e3b89d46035b10e8525b1bd368dc`，保留选择性状态空间层、序列表示和商品嵌入打分。官方代码以 `item_seq_len - 1` 取状态，每条训练样本读取一个目标商品。适配器将真实 ID 放在序列左侧、在右侧补 0，并将分数交给上述整月多正例损失和统一评价器。跳过 RecBole 的默认切分与样本生成，明确保留复购候选。通过测试核对编码器与评分头均获得梯度，验证时按相同候选顺序输出分数。[作者代码](https://github.com/chengkai-liu/Mamba4Rec/blob/44a0c8432b34e3b89d46035b10e8525b1bd368dc/mamba4rec.py) · [论文](https://arxiv.org/abs/2403.03900)
+**Mamba4Rec 接口。** 使用真正的 RecBole 实例化作者提交 `44a0c8432b34e3b89d46035b10e8525b1bd368dc` 中的 `Mamba4Rec` 类。原模型文件和 MIT 许可保存在 `third_party/mamba4rec/`，运行时核对源文件摘要。官方代码以 `item_seq_len - 1` 取状态，每条训练样本读取一个目标商品。适配器将真实 ID 放在序列左侧、在右侧补 0，并将分数交给上述整月多正例损失和统一评价器。跳过 RecBole 的默认切分与样本生成，明确保留复购候选。通过测试核对编码器与评分头均获得梯度，验证时按相同候选顺序输出分数。[作者代码](https://github.com/chengkai-liu/Mamba4Rec/blob/44a0c8432b34e3b89d46035b10e8525b1bd368dc/mamba4rec.py) · [论文](https://arxiv.org/abs/2403.03900)
 
 ### 5. 调参、冻结与最终测试
 
@@ -189,8 +189,8 @@ D1 和 D2 准备并检验共用数据。先基于这份数据写完 D3 至 D5 �
 | **D2**　查询、共享序列与评价器 | `scripts/build_queries.py` 生成快照、候选、词表与隔离的标签。`src/data/sequences.py` 导出两种序列模型共用的变长历史。[统一评价器](../src/evaluation/ranking.py) 计算 Top-10、两个主指标及第 5 节规定的抽样 ROC AUC。 | 手算指标通过。追加未来交易后训练快照不变。四个模型的查询与目录相同，两种序列模型移除填充后的商品与先后顺序逐条相同。 |
 | **D3**　MF 基线 | 使用 D2 共用的训练正负样本拟合客户和商品的嵌入及偏置，按查询归一化二元交叉熵并加 L2 正则。[MF 模型](../src/models/mf.py) · [配置](../configs/mf.yaml) | 手算损失，核对参数更新、无训练信号商品的均值回退、全目录验证及重载后排名一致。 |
 | **D4**　LightGBM | 按历史截止点构造特征，使用与 MF 相同的 D2 正负样本组成连续排序组。[特征](../src/features/asof.py) · [排序模型](../src/models/lightgbm_ranker.py) · [配置](../configs/lightgbm.yaml) | 手工核对一个客户–商品对的频次和最近购买日期。检查组连续、组大小总和、正负例互斥、没有来自未来的特征，保存验证表现与特征字典。 |
-| **D5a**　LRURec | [LRURec 适配器](../src/models/lrurec_adapter.py) · [配置](../configs/lrurec.yaml) · [适配说明](lrurec_adaptation.zh-CN.md)。接官方线性循环与共享序列，把月度损失放入共用的 `src/models/sequence_objective.py`。 | 用短、长、含复购序列检查掩码。在 Colab GPU 上用真实小样本跑 1 个 epoch，保存、重载、复算验证 Top-10。 |
-| **D5b**　Mamba4Rec | [Mamba4Rec 适配器](../src/models/mamba4rec_adapter.py) · [配置](../configs/mamba4rec.yaml)。接官方 Mamba 层与评分方法，直接调用 D2 序列、`sequence_objective.py` 和统一评价器。 | 在锁定依赖的 Colab GPU 上跑相同真实小样本，检验右侧填充、有效位置、多正例损失、参数更新、断点恢复和全候选 Top-10。 |
+| **D5a**　LRURec | [LRURec 适配器](../src/models/lrurec_adapter.py) · [配置](../configs/lrurec.yaml) · [适配说明](lrurec_adaptation.zh-CN.md)。使用本地缓存的作者 `LRU` 嵌入层与循环模块处理共享序列，把月度损失放入共用的 `src/models/sequence_objective.py`。 | 用短、长、含复购序列核对掩码。一次编码后，将候选分块分数与作者完整前向打分进行对照，分别核验嵌入和偏置的动态支持掩码。在 Colab GPU 上用真实小样本跑 1 个 epoch，保存、重载、复算验证 Top-10。 |
+| **D5b**　Mamba4Rec | [Mamba4Rec 适配器](../src/models/mamba4rec_adapter.py) · [配置](../configs/mamba4rec.yaml)。使用作者的完整推荐模型和共享商品嵌入，直接调用 D2 序列、`sequence_objective.py` 和统一评价器。 | 在锁定依赖的 Colab GPU 上跑相同真实小样本，检验右侧填充、有效位置、多正例损失、参数更新、断点恢复和全候选 Top-10。 |
 | **D6**　调参、选模、测试 | 基于单模型训练入口增加正式搜索、四模型选择和锁定测试。按第 5 节执行四个模型的搜索预算与冻结。 | `tuning.csv` 包括所有尝试、种子及失败原因。`selection.json` 先于测试结果生成。四个模型的两个主指标可从冻结的 Top-10 与标签复算，抽样 ROC AUC 可从同一分区的抽样清单和对应分数复算。 |
 | **D7**　解释与交付 | `scripts/make_report_tables.py` 导出主表、覆盖、分组和案例。完成技术报告、README 和 5 分钟展示。 | 一名组员在新环境按 README 跑通小样本，并从冻结预测重建主表。报告数字与表格一致，组长完成 Canvas 提交和展示排练。 |
 
@@ -223,6 +223,7 @@ python -m scripts.audit_label_delay
 python -m scripts.train --model mf --smoke --device cpu
 python -m scripts.train --model lightgbm --smoke --device cpu
 # 在各自的 GPU 环境试训
+python -m src.models.lrurec_source
 python -m scripts.train --model lrurec --smoke --device cuda
 python -m src.models.mamba4rec_adapter --preflight --output runs/mamba4rec/preflight.json
 python -m scripts.train --model mamba4rec --smoke --device cuda
@@ -285,9 +286,9 @@ python -m scripts.train --model mamba4rec --smoke --device cuda
 
 使用 `data/processed/d2/manifest.json` 识别每次实验的数据、截止点、随机种子与产物版本。二月至九月为训练目标；十月验证与之后的十一月测试共用十月一日的历史。已生成 5,430 条训练查询和 758 条合格的十月验证查询。D2 notebook 逐步演示查询、统一序列和指标验算。[运行清单](../data/processed/d2/manifest.json) · [月度覆盖](../data/processed/d2/coverage.csv) · [月度查询与评价](../notebooks/monthly_queries_and_evaluation.ipynb) · [统一排名评价器](../src/evaluation/ranking.py)
 
-**有序试训结果。** 四种模型的代码备齐后，再开始逐个验收。共用小样本包括 64 名训练客户、206 条训练查询、30,816 个采样训练对。每个完成 CPU 试训的模型均给 16 条十月验证查询中的每一条打分，候选商品各 3,495 个。AUC 样本中共有 428 个不同的查询–商品正例和 4,280 个抽样负例。MF、LightGBM、LRURec 依次通过 CPU 验收。重载后的 Top-10 排名完全一致，已保存的 Top-10 与 AUC 样本的分数最大绝对误差均为 0。[模型试训汇总](../results/model_pilots/summary.csv)
+**有序试训结果。** 四种模型的代码备齐后，再开始逐个验收。共用小样本包括 64 名训练客户、206 条训练查询、30,816 个采样训练对。每个完成 CPU 试训的模型均给 16 条十月验证查询中的每一条打分，候选商品各 3,495 个。AUC 样本中共有 428 个不同的查询–商品正例和 4,280 个抽样负例。`69fcba3` 的 CPU 记录涵盖 MF、LightGBM 和旧版独立实现 LRURec。重载后的 Top-10 排名完全一致，已保存的 Top-10 与 AUC 样本的分数最大绝对误差均为 0。[模型试训汇总](../results/model_pilots/summary.csv)
 
-Mamba4Rec 环境检查发现本机的 PyTorch 为 CPU 版，且没有 NVIDIA 设备。LRURec 在 Colab 的 GPU 试训，以及 Mamba4Rec 的原生扩展检查和 GPU 试训仍待完成。D6 正式搜索尚未启动，十一月测试集继续封存至四个模型的配置冻结。
+修订分支 `feat/upstream-sequence-models` 从 `69fcba3` 创建。作者版本 LRURec 在相同 CPU 小样本上训练一轮，Recall@10 为 0.02911，NDCG@10 为 0.09083。重载权重后 Top-10 完全一致。RecBole 1.2.0 另通过了 CPU 依赖检查。LRURec 在 Colab 的 GPU 试训，以及 Mamba4Rec 的原生扩展检查和 GPU 试训仍待完成。D6 正式搜索尚未启动，十一月测试集继续封存至四个模型的配置冻结。[修订分支试训记录](../results/model_pilots_upstream/summary.csv)
 
 <a id="sources"></a>
 

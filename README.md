@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. All four models share the same net-retained basket histories, candidate catalogs and monthly labels. MF, LightGBM and LRURec have completed CPU pilot runs. Colab GPU verification for both sequence models and the formal model comparison remain pending. [Research and development plan v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
+This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. All four models share the same net-retained basket histories, candidate catalogs and monthly labels. MF, LightGBM and the authors’ LRURec have recorded CPU pilot results. Both sequence adapters use the authors’ pinned recommender code. Colab GPU verification for both sequence models and the formal model comparison remain pending. [Research and development plan v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
 
 ## Run instructions
 
@@ -50,17 +50,18 @@ The query builder writes to `data/processed/d2/`. Look in `manifest.json` for ve
 
 ### D3–D5 · Model pilots
 
-Open the model pilot notebook from GitHub in Colab. It defaults to `MODEL=mf` and `RUN_SIZE=smoke`. Choose `mf` or `lightgbm` on CPU, or `lrurec` or `mamba4rec` on an NVIDIA GPU runtime. Run the cells in order. The notebook verifies the D2 inputs and saves the session in the Drive project under `experiments/model_pilots/<session>/`. Open `session.log` for the transcript and `model/run.json` for the configuration, hardware, validation metrics and reload check. [Model pilot notebook](notebooks/model_pilots.ipynb)
+In Colab’s GitHub tab, open `notebooks/model_pilots.ipynb` from `feat/upstream-sequence-models`. Choose `smoke` and one model per session. MF and LightGBM use CPU. Choose an NVIDIA GPU for either sequence model’s Colab pilot. Run all cells. The notebook verifies D2, caches LRURec in Drive under `cache/lrurec/`, and prints the Drive run directory `experiments/model_pilots/<model>/<session>/` containing `session.log` and `model/run.json`. [Model pilot notebook](notebooks/model_pilots.ipynb)
 
-**CPU verification.** MF, LightGBM and LRURec completed small training runs, scored the full October catalog for the selected validation customers, and reproduced their Top-10 after reloading the checkpoint. After installing the model dependencies below, reproduce these runs from the repository root. [Pilot summary](results/model_pilots/summary.csv) · [LightGBM features](docs/lightgbm_features.md)
+**CPU runs.** Install the model dependencies below, then use the following commands to run each CPU pilot. For LRURec, the source command obtains and verifies the authors’ pinned file. Use `LRUREC_CACHE_DIR` for a persistent cache or `LRUREC_REFERENCE_FILE` for an existing exact copy. [MF and LightGBM pilot results](results/model_pilots/summary.csv) · [Sequence model runs](results/model_pilots_upstream/summary.csv)
 
 ```bash
 python -m scripts.train --model mf --device cpu --smoke
 python -m scripts.train --model lightgbm --device cpu --smoke
+python -m src.models.lrurec_source
 python -m scripts.train --model lrurec --device cpu --smoke
 ```
 
-**GPU verification pending.** LRURec still needs its Colab GPU pilot. Mamba4Rec's native CUDA kernels could not run on the CPU cloud host. Its GPU check begins with a synthetic parameter update, followed by the real D2 pilot. The notebook prepares the respective GPU environment. Within that environment the corresponding commands are as follows. [LRURec adaptation](docs/lrurec_adaptation.md) · [Mamba4Rec environment and adaptation](docs/mamba4rec_adaptation.md) · [Recorded Mamba4Rec preflight](results/model_pilots/mamba4rec/preflight.json)
+**GPU verification.** Start with the model’s isolated Colab environment. Mamba4Rec uses the repository’s MIT-licensed copy of the authors’ recommender and real RecBole. Its preflight checks the native GPU forward pass, gradients, optimizer update and checkpoint reload, before training on D2. [LRURec adaptation](docs/lrurec_adaptation.md) · [Mamba4Rec setup](docs/mamba4rec_adaptation.md)
 
 ```bash
 python -m scripts.train --model lrurec --device cuda --smoke
@@ -127,7 +128,8 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | Verified locally | [Training EDA results](results/training_eda/) | Training-window totals and denominators, monthly volume, distributions and product popularity in JSON, CSV and PNG formats. |
 | Available on execution | Output cells in [the transaction notebook](docs/technical/transaction_records.ipynb) | Workbook dimensions, invoice lines, and basket totals. |
 | Verified locally | [D2 manifest](data/processed/d2/manifest.json) · [Monthly coverage](data/processed/d2/coverage.csv) · [Parquet tables](data/processed/d2/) | Cutoff-specific inputs, cohort counts, and deterministic training and validation samples. |
-| CPU pilots verified | [Pilot summary](results/model_pilots/summary.csv) | Model, runtime and small-run validation evidence. GPU checks for both sequence models remain pending. |
+| CPU pilot evidence | [MF and LightGBM](results/model_pilots/summary.csv) | Includes the earlier independent LRURec implementation at `69fcba3` for comparison. |
+| Authors’ sequence models | [Run status and metrics](results/model_pilots_upstream/summary.csv) | LRURec CPU pilot and Mamba4Rec environment checks are stored by model. Consult each row for its device and completion status. |
 | Planned | `results/test_metrics.csv` | Four-model comparison on the frozen test protocol. |
 | Planned | `results/cohort_coverage.csv`, `results/segment_metrics.csv`, `results/case_study.csv` | Population coverage, metrics by group, and individual recommendations. |
 | Planned | `experiments/exp_XXX/diagnostics_panel.png` | Diagnostic figure for an experiment. |

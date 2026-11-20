@@ -1,0 +1,36 @@
+{
+  "scope": "CPU dependency check for the published RecBole interfaces used by Mamba4Rec",
+  "device": "cpu",
+  "python": "3.12.14",
+  "packages": {
+    "torch": "2.6.0+cpu",
+    "numpy": "2.2.6",
+    "recbole": "1.2.0"
+  },
+  "native_mamba_exercised": false,
+  "status": "passed",
+  "imports": [
+    "recbole.model.abstract_recommender.SequentialRecommender",
+    "recbole.model.loss.BPRLoss"
+  ],
+  "catalog_size_with_pad": 6,
+  "history_lengths": [
+    1,
+    3
+  ],
+  "gathered_last_states": [
+    [
+      0.0,
+      1.0,
+      2.0
+    ],
+    [
+      18.0,
+      19.0,
+      20.0
+    ]
+  ],
+  "gather_max_abs_error": 0.0,
+  "bpr_import_and_gradient_check": true,
+  "sample_bpr_loss": 0.8132616281509399
+}

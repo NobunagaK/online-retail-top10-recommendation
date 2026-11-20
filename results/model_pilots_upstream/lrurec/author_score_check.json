@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "comparison": "candidate chunks vs authors' complete LRU.forward at final position",
+  "model_commit": "79d5840fc9661fa6f9f3aab6127cd1e402c24f7f",
+  "upstream_model": {
+    "repository": "yueqirex/LRURec",
+    "class": "LRU",
+    "commit": "e02a559bd8c42342f5c53d69cefea2589becb22c",
+    "source_sha256": "149e0ccfe03c7eba7a51bf405d179f8a3f395011c0f730169aec2b59c9c156b1"
+  },
+  "checkpoint_sha256": "76c6a6b2c454985612bed666c53310237005b5622b18d5be1902bea6897dcc4f",
+  "manifest_sha256": "2c43ea52949cf92c6d9f6377cbc2e43685647a7be6d3315c0b0e35cae517f086",
+  "validation_queries_sha256": "b977bc780b129afb4ba67b74683c52a3cf05320f5af68743eb34cda16f75ff29",
+  "ordered_catalog_ids_sha256": "360159aecb76f070b48093c38a0caaea0c6b48cf7260361746ce5cfc23fef66d",
+  "device": "cpu",
+  "torch": "2.8.0+cpu",
+  "training_queries": 206,
+  "queries": 16,
+  "candidates_per_query": 3495,
+  "scores_compared": 55920,
+  "chunk_size": 256,
+  "encoder_calls": 16,
+  "encoder_calls_per_query": 1,
+  "training_history_items": 1640,
+  "training_loss_items": 3382,
+  "candidate_embedding_fallback_rows": 114,
+  "candidate_bias_fallback_rows": 114,
+  "atol": 2e-06,
+  "rtol": 2e-05,
+  "max_absolute_score_error": 3.5762786865234375e-07,
+  "identical_ordered_top10_queries": 16
+}

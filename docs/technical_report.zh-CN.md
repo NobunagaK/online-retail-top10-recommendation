@@ -2,7 +2,7 @@
 
 [English](technical_report.md) · [简体中文](technical_report.zh-CN.md)
 
-本项目预测一位客户在后续月份会购买、且到月末仍有正余量的商品，为其推荐十种。现已完成 D1 交易清洗、D2 月度查询构建与评价器核验。四种模型适配器均已实现，MF、LightGBM 和 LRURec 已在 CPU 上完成小样本训练与验证。全量训练、验证选模和最终测试尚待完成。数据来自 D. Chen（2015）的 *Online Retail*，由 UCI Machine Learning Repository 发布，DOI 为 10.24432/C5BW33，授权为 CC BY 4.0。以下统计由课程提供的原始工作簿（541,909 行、8 列）清洗、聚合而得。[数据来源与引用](https://doi.org/10.24432/C5BW33) · [课程项目要求，第 3 页](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
+本项目预测一位客户在后续月份会购买、且到月末仍有正余量的商品，为其推荐十种。现已完成 D1 交易清洗、D2 月度查询构建与评价器核验。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列模型的适配器均接入作者固定版本的公开推荐模型源码。全量训练、验证选模和最终测试尚待完成。数据来自 D. Chen（2015）的 *Online Retail*，由 UCI Machine Learning Repository 发布，DOI 为 10.24432/C5BW33，授权为 CC BY 4.0。以下统计由课程提供的原始工作簿（541,909 行、8 列）清洗、聚合而得。[数据来源与引用](https://doi.org/10.24432/C5BW33) · [课程项目要求，第 3 页](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
 
 ## 从交易明细到购买历史
 
@@ -26,17 +26,18 @@ MF 和 LightGBM 共用同一查询内的训练负例，LightGBM 按客户和目�
 
 ## 模型实现与 CPU 小样本验证
 
-MF 用客户与商品的隐因子点积加偏置评分。LightGBM 使用历史购买特征，按客户–月份分组训练 LambdaRank 排序器。LRURec 用两层线性循环单元编码最近 64 个事件，再用候选商品的嵌入和偏置评分。Mamba4Rec 接入作者的选择性状态空间层，并使用商品嵌入评分。两种序列适配器都以月内所有去重的目录内正例为训练目标。[模型小样本验证 notebook](../notebooks/model_pilots.ipynb)
+MF 以客户与商品的隐因子点积加偏置评分。LightGBM 对客户–月份分组训练 LambdaRank。LRURec 直接使用作者提交 `e02a559` 中的 `LRU`，输入左填充的购买序列，末状态与共享商品嵌入做点积并加商品偏置。Mamba4Rec 用 RecBole 实例化作者提交 `44a0c84` 中的 `Mamba4Rec`，输入右填充的商品编号和真实长度。两者都使用 D2 的时间切分、截止时可见的候选目录及月度多正例，保留复购资格。[LRURec 适配说明](lrurec_adaptation.zh-CN.md) · [Mamba4Rec 适配说明](mamba4rec_adaptation.zh-CN.md)
 
-三个 CPU 小样本实验都使用种子 42、相同的 **206 条训练查询和 16 条十月验证查询**。每条查询对 **3,495 种候选商品**完整排序，据此计算 Recall 和 NDCG。抽样 ROC AUC 使用这些查询的全部 **428 个目录内正例**和固定抽取的 **4,280 个负例**的原始分数。三项指标均先按查询计算，再等权取平均。
+CPU 试训使用种子 42、**206 条训练查询和 16 条十月验证查询**。每条查询对 **3,495 种候选商品**完整排序，据此计算 Recall 和 NDCG。抽样 ROC AUC 使用这些查询的 **428 个目录内正例**和固定抽取的 **4,280 个负例**。三项指标均按查询等权平均。
 
 | 模型 | Recall@10 | NDCG@10 | 抽样 ROC AUC |
 |---|---:|---:|---:|
 | MF | 0.01162 | 0.06116 | 0.67143 |
 | LightGBM | 0.16824 | 0.32521 | 0.91526 |
-| LRURec | 0.02896 | 0.09704 | 0.53316 |
+| LRURec，作者的 `LRU` | 0.02911 | 0.09083 | 0.55049 |
+| LRURec，`69fcba3` 旧版独立实现（历史对照） | 0.02896 | 0.09704 | 0.53316 |
 
-分别重新载入三个模型后，Top-10 排名和 AUC 抽样商品的分数均精确复现。本次 MF 和 LRURec 各训练一轮，LightGBM 最多训练 12 个提升轮次。758 条合格验证查询中仅有 16 条参与本次运行；正式选模仍须按预定调参预算，在完整验证人群上比较。当前环境没有 NVIDIA GPU。LRURec 和 Mamba4Rec 均待完成计划中的 Colab GPU 核验，Mamba4Rec 尚无实测验证分数。[小样本结果](../results/model_pilots/summary.csv) · [Mamba4Rec 环境核验](../results/model_pilots/mamba4rec/preflight.json)
+作者版本的 LRURec 在 CPU 上训练一轮，重载后分数和 Top-10 全部复现。本次 3,495 种候选商品中有 114 种触发均值回退，涉及 46 个验证正例，在 Top-10 中命中 0 次。历史对照行记录旧版独立实现在同一试训样本上的结果。正式选模仍须在全部 758 位合格验证客户上比较。另在 CPU 环境实测通过了真实 RecBole 的依赖检查。Mamba4Rec 原生训练及其验证分数、两种模型的 Colab GPU 试训均待实测。[RecBole CPU 检查](../results/model_pilots_upstream/mamba4rec/recbole_cpu_import.json)[基线与旧版试训记录](../results/model_pilots/summary.csv) · [作者模型试训记录](../results/model_pilots_upstream/summary.csv)
 
 ## 延迟反馈与标签稳定性
 

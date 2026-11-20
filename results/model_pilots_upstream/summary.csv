@@ -1,0 +1,5 @@
+model,stage,device,status,training_queries,validation_queries,candidates_per_query,recall_at_10,ndcg_at_10,sampled_query_macro_auc,reload_max_score_delta,evidence
+lrurec,pilot,cpu,verified,206,16,3495,0.029110364212734902,0.09083041086975355,0.5504851406033999,0.0,lrurec/run.json
+lrurec,pilot,cuda,awaiting_colab_gpu,,,,,,,,
+mamba4rec,recbole_dependency_check,cpu,verified,,,,,,,,mamba4rec/recbole_cpu_import.json
+mamba4rec,pilot,cuda,awaiting_colab_gpu,,,,,,,,mamba4rec/preflight.json

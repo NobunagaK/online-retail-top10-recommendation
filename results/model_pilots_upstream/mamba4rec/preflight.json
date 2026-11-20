@@ -1,0 +1,28 @@
+{
+  "upstream_commit": "44a0c8432b34e3b89d46035b10e8525b1bd368dc",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "packages": {
+    "torch": "2.6.0+cpu",
+    "recbole": "1.2.0",
+    "numpy": "2.2.6",
+    "mamba-ssm": null,
+    "causal-conv1d": null,
+    "triton": null,
+    "transformers": null
+  },
+  "nvidia_driver": null,
+  "nvcc_version": null,
+  "upstream_sha256": "5cfb15241ad3608ef21e7abd9739ad03b363c10759dcdf136aa02305392c91f2",
+  "upstream_class": "third_party.mamba4rec.mamba4rec.Mamba4Rec",
+  "recbole_imports": {
+    "status": "passed",
+    "base": "recbole.model.abstract_recommender",
+    "loss": "recbole.model.loss"
+  },
+  "torch_cuda": null,
+  "cxx11_abi": false,
+  "status": "failed",
+  "error_type": "RuntimeError",
+  "error": "CUDA is unavailable. Run the preflight in an NVIDIA GPU runtime."
+}
