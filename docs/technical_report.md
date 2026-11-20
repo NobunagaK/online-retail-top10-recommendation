@@ -2,7 +2,7 @@
 
 [English](technical_report.md) · [简体中文](technical_report.zh-CN.md)
 
-This project asks which ten products a customer will buy in a later calendar month and still have a positive recorded quantity for at month-end. We have completed transaction preparation (D1), monthly query construction and evaluator checks (D2). Model training, validation-based selection and final test results are pending. We use D. Chen (2015), *Online Retail*, UCI Machine Learning Repository, DOI 10.24432/C5BW33, licensed CC BY 4.0. The transformations below derive from the supplied 541,909-line, eight-column workbook. [Dataset and attribution](https://doi.org/10.24432/C5BW33) · [Course specification, p. 3](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
+This project asks which ten products a customer will buy in a later calendar month and still have a positive recorded quantity for at month-end. We have completed transaction preparation (D1), monthly query construction and evaluator checks (D2). All four model adapters are implemented. MF, LightGBM and LRURec have completed a small CPU training and validation run. Full-cohort training, model selection and final testing remain pending. We use D. Chen (2015), *Online Retail*, UCI Machine Learning Repository, DOI 10.24432/C5BW33, licensed CC BY 4.0. The transformations below derive from the supplied 541,909-line, eight-column workbook. [Dataset and attribution](https://doi.org/10.24432/C5BW33) · [Course specification, p. 3](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
 
 ## From transaction lines to purchase history
 
@@ -24,6 +24,20 @@ October validation (T+1) and November testing (T+2) use the same history ending 
 
 MF and LightGBM share within-query training negatives. LightGBM groups candidates by customer and target month. LRURec and Mamba4Rec use the same time-ordered history, preserving repeat purchases. All four models will rank every item in the same query catalog. The primary metrics are query-macro Recall@10 and NDCG@10, with sampled query-macro ROC AUC as a supplement. October validation alone will guide model and hyperparameter selection before November test evaluation. [Inputs and sampling seeds](../data/processed/d2/manifest.json) · [Evaluator](../src/evaluation/ranking.py) · [Experiment plan](CS5481_Project2_Research_Development_Plan_3.4.en.md)
 
+## Model implementations and CPU pilot
+
+MF scores each customer–item pair with a latent-factor dot product and biases. LightGBM uses LambdaRank over customer–month groups with historical purchase features. LRURec encodes the most recent 64 events with two linear recurrent layers and scores candidates with their item embeddings and biases. Mamba4Rec uses the authors’ selective state-space layer and an item-embedding scoring head. Both sequence adapters train against all distinct in-catalog monthly positives. [Model pilot notebook](../notebooks/model_pilots.ipynb)
+
+With seed 42, the three CPU pilots used the same **206 training queries and 16 October validation queries**. Each model ranked **3,495 candidates per query**. Recall and NDCG use the full-catalog ranking. Sampled ROC AUC compares scores for all **428 in-catalog positives** with **4,280 fixed sampled negatives** across these queries. Each metric is averaged equally over queries.
+
+| Model | Recall@10 | NDCG@10 | Sampled ROC AUC |
+|---|---:|---:|---:|
+| MF | 0.01162 | 0.06116 | 0.67143 |
+| LightGBM | 0.16824 | 0.32521 | 0.91526 |
+| LRURec | 0.02896 | 0.09704 | 0.53316 |
+
+Reloading each saved model reproduced its Top-10 and sampled AUC scores exactly. The pilot used one epoch for MF and LRURec and capped LightGBM at 12 boosting rounds. Only 16 of 758 eligible validation queries entered this run. Model selection requires full-cohort validation under the planned tuning budgets. The local runtime had no NVIDIA GPU. The planned Colab GPU checks for LRURec and Mamba4Rec remain pending, and Mamba4Rec has no measured validation score. [Pilot results](../results/model_pilots/summary.csv) · [Mamba4Rec environment check](../results/model_pilots/mamba4rec/preflight.json)
+
 ## Delayed feedback and label stability
 
 Our audit counts a **month–customer–SKU** once if it has positive retained units at month-end. The numerator counts these positives whose remaining units for that purchase month reached zero by the final observed timestamp, 9 December 2011 at 12:50. The audit precedes customer and catalog filtering. An early-October sale has weeks to accumulate credits before the label freezes. An otherwise outstanding 31 October purchase stays positive for October even if a 1 November credit fully reverses it. Across the training months, 653 of 203,020 positives reached zero. In October the figure was **105 of 43,978 (0.239%)**. Together, the reproducible February–October audit finds **758 of 246,998 (0.307%)**. The project owner separately reported **788 of 301,922 (0.261%)** for February–November, including 30 November positives. November has only the 1–9 December tail for post-month follow-up, so later credits are right-censored. This descriptive check leaves the frozen labels intact. Estimating the impact on ranking metrics requires the affected eligible queries and their actual recommendation ranks. [Pre-test label audit](../results/d2_audit/label_delay_pretest.csv) · [Audit method and owner-reported November figure](data_protocol.md#month-end-labels-and-delayed-feedback)
@@ -38,4 +52,4 @@ Our audit counts a **month–customer–SKU** once if it has positive retained u
 | Cold start | In October, 356 active customers had no eligible history, and 1,787 positive customer–SKU pairs fell outside the catalog. | Report eligibility coverage alongside primary scores and supplementary Recall with out-of-catalog items in its denominator. |
 | Cancellations and returns | Linked credits change the effective quantity and can eliminate a target entirely, as invoice 541431 illustrates. | For a fixed customer case, present the history, target, each model's Top-10 and at least one miss. Check the credit available at the relevant cutoff before interpreting a hit. |
 
-These observations describe purchases and coverage. Model scores and prediction examples will be added after training and the frozen evaluation. [Training evidence](../results/training_eda/summary.json) · [Coverage by month](../data/processed/d2/coverage.csv)
+These observations describe purchases and coverage. Full-cohort validation, frozen test scores and customer-level prediction examples will complete this comparison. [Training evidence](../results/training_eda/summary.json) · [Coverage by month](../data/processed/d2/coverage.csv)

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。数据准备流程逐行记录清洗决定，并生成四种模型共用的净有效购买购物篮事件。研究计划记录后续要实现的训练和评估流程。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。MF、LightGBM 和 LRURec 已完成 CPU 试训。两种序列模型的 Colab GPU 核验及正式模型比较仍待完成。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 ## 运行说明
 
@@ -48,6 +48,28 @@ python -m scripts.audit_label_delay
 
 **如何解读跨月冲销。** 在限制客户资格及候选目录前，二月至十月共有 246,998 个不同的“月份–客户–商品”月末正例，计入后来可观察到的冲销后，其中 758 个归零。项目负责人另行提供的整表核对涵盖二月至十一月，结果为 788/301,922（0.26%），其中十一月为 30 个。这些比率衡量记录中的正例变化。要计算 Recall@10 或 NDCG@10 的变化，还需要逐查询的合格正例及模型排名。模型选择只使用十月验证。[测试前审计表](results/d2_audit/label_delay_pretest.csv) · [跨月冲销审计](scripts/audit_label_delay.py) · [定义与分母](docs/data_protocol.zh-CN.md)
 
+### D3–D5 · 模型试训
+
+在 Colab 的 GitHub 选项中打开模型试训 notebook。默认选择 `MODEL=mf`、`RUN_SIZE=smoke`。使用 CPU 时可选 `mf` 或 `lightgbm`，使用 NVIDIA GPU 时可选 `lrurec` 或 `mamba4rec`。依次运行单元格，notebook 会校验 D2 输入，并将本次记录保存至 Drive 项目的 `experiments/model_pilots/<本次运行目录>/`。`session.log` 记录终端输出，`model/run.json` 记录配置、硬件、验证指标及模型重载核验结果。[模型试训 notebook](notebooks/model_pilots.ipynb)
+
+**已完成的 CPU 核验。** MF、LightGBM 和 LRURec 均完成小样本训练，为入选的十月验证客户对全部候选商品打分，重新载入模型后复现了相同的 Top-10。安装下方的软件依赖后，可从仓库根目录运行以下命令。[试训汇总](results/model_pilots/summary.csv) · [LightGBM 特征字典](docs/lightgbm_features.zh-CN.md)
+
+```bash
+python -m scripts.train --model mf --device cpu --smoke
+python -m scripts.train --model lightgbm --device cpu --smoke
+python -m scripts.train --model lrurec --device cpu --smoke
+```
+
+**待完成的 GPU 核验。** LRURec 仍需在 Colab GPU 上试训。当前 CPU 云环境无法运行 Mamba4Rec 的原生 CUDA 算子，GPU 核验将先检查合成样例的参数更新，再运行真实 D2 试训。notebook 会按所选模型准备 GPU 环境。在对应环境中可运行以下命令。[LRURec 适配说明](docs/lrurec_adaptation.zh-CN.md) · [Mamba4Rec 环境与适配说明](docs/mamba4rec_adaptation.zh-CN.md) · [Mamba4Rec 环境预检记录](results/model_pilots/mamba4rec/preflight.json)
+
+```bash
+python -m scripts.train --model lrurec --device cuda --smoke
+python -m src.models.mamba4rec_adapter --preflight --output runs/mamba4rec/preflight.json
+python -m scripts.train --model mamba4rec --device cuda --smoke
+```
+
+命令行默认读取 `data/processed/d2/`，将每次结果写入 `runs/<模型>/<UTC 时间戳>/`。可用 `--data-dir`、`--output-dir` 改用其他位置。续跑时指定同一输出目录并加上 `--resume`。成功运行后可查看 `metrics.csv`、`query_metrics.csv`、`top10.parquet`、`auc_scores.parquet` 及最佳模型文件（`best.pt` 或 LightGBM 的 `best.txt`）。省略 `--smoke` 或在 notebook 中选择 `baseline` 会用完整训练数据拟合一套配置。D6 将比较预先登记的配置和种子，选定模型后再打开十一月测试标签。[训练入口](scripts/train.py) · [模型配置](configs/)
+
 ### 技术文档 · 核对一张发票
 
 1. 在 Google Colab 选择 CPU 运行时，打开交易明细 notebook。在「文件 → 打开笔记本」中，可以选择 GitHub 标签页并粘贴该文件的 GitHub 地址，也可以上传下载的 `.ipynb` 文件。[原始交易明细与购物篮](docs/technical/transaction_records.ipynb)
@@ -73,7 +95,14 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-如需在本地执行 notebook、导出 Python 或运行测试，请在同一环境运行 `python -m pip install -r requirements-dev.txt`，并在本地 notebook 界面选用此环境的 Python 内核。测试命令为 `python -m pytest -q`。D1、D2 在 CPU 上使用 NumPy、pandas、openpyxl、Matplotlib 和 PyArrow。后续模型试训会分别记录实测依赖与 GPU 运行环境。
+如需在本地执行 notebook、导出 Python 或运行测试，请在同一环境运行 `python -m pip install -r requirements-dev.txt`，并在本地 notebook 界面选用此环境的 Python 内核。测试命令为 `python -m pytest -q`。D1、D2 在 CPU 上使用 NumPy、pandas、openpyxl、Matplotlib 和 PyArrow。
+
+在 Linux CPU 上复现模型试训时，还需在当前环境安装模型依赖及 CPU 版 PyTorch。GPU notebook 分别为两种序列模型准备环境，Mamba4Rec 使用其说明中对应的 CUDA 版 PyTorch 和原生二进制包。[模型依赖](requirements-models.txt) · [Mamba4Rec GPU 安装说明](docs/mamba4rec_adaptation.zh-CN.md)
+
+```bash
+python -m pip install -r requirements-models.txt
+python -m pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+```
 
 ## 随机种子
 
@@ -98,6 +127,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | 本地已核验 | [训练期 EDA 输出目录](results/training_eda/) | 训练窗口总量及分母、月度统计、分布与商品热度表和图，格式为 JSON、CSV 和 PNG。 |
 | 运行后可查看 | [交易明细 notebook](docs/technical/transaction_records.ipynb) 的输出单元格 | 工作表行列数、发票明细和购物篮汇总。 |
 | 已本地核验 | [D2 清单](data/processed/d2/manifest.json) · [月度覆盖统计](data/processed/d2/coverage.csv) · [Parquet 表](data/processed/d2/) | 各截止点的共用输入、客户覆盖分母、可复现的训练与验证抽样。 |
+| CPU 试训已核验 | [试训汇总](results/model_pilots/summary.csv) | 模型、运行环境及小样本验证结果。两种序列模型的 GPU 核验仍待完成。 |
 | 计划生成 | `results/test_metrics.csv` | 在冻结的测试协议下比较四个模型。 |
 | 计划生成 | `results/cohort_coverage.csv`、`results/segment_metrics.csv`、`results/case_study.csv` | 客户覆盖、分组指标和个案推荐结果。 |
 | 计划生成 | `experiments/exp_XXX/diagnostics_panel.png` | 各次实验的诊断图。 |

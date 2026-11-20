@@ -1,0 +1,101 @@
+{
+  "model": "lrurec",
+  "config": {
+    "seed": 42,
+    "epochs": 1,
+    "patience": 10,
+    "max_length": 64,
+    "hidden_dim": 64,
+    "num_layers": 2,
+    "dropout": 0.2,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.01
+  },
+  "device": "cpu",
+  "threads": 2,
+  "smoke": true,
+  "manifest_sha256": "2c43ea52949cf92c6d9f6377cbc2e43685647a7be6d3315c0b0e35cae517f086",
+  "training_queries_sha256": "4df16ce1e6c8ce0b2268c258479944e57b7ad07bd0ac917882ce29d091dda731",
+  "validation_queries_sha256": "b977bc780b129afb4ba67b74683c52a3cf05320f5af68743eb34cda16f75ff29",
+  "runtime_versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.3",
+    "pyarrow": "20.0.0",
+    "torch": "2.8.0+cpu",
+    "python": "3.12.14"
+  },
+  "source_sha256": "d3c7ee544439f8dd39751b4d22a8fa33fe3f3e537762fdd077ba0340e5e17825",
+  "signature": "9efd1fe8d79335b65b2d70c77e34a278ef40022c7ae950191f744fe464fdcb5b",
+  "seed": 42,
+  "hardware": {
+    "device": "cpu",
+    "cpu": "x86_64",
+    "python": "3.12.14",
+    "packages": {
+      "torch": "2.8.0+cpu",
+      "lightgbm": "4.6.0",
+      "scikit-learn": "1.8.0",
+      "numpy": "2.2.6",
+      "pandas": "2.2.3",
+      "pyarrow": "20.0.0"
+    }
+  },
+  "git_commit": "df5e9278444acd71cca258d4ba66cb773810c180",
+  "protocol": "v3.4_monthly_net_retained_v1",
+  "training_queries": 206,
+  "validation_queries": 16,
+  "training_pair_rows": 30816,
+  "validation_candidates": 3495,
+  "split": "validation",
+  "started_utc": "2026-11-20T04:52:01.571034+00:00",
+  "status": "complete",
+  "best_epoch": 1,
+  "epochs_completed": 1,
+  "validation_metrics": {
+    "recall_at_10": 0.028958548435919124,
+    "ndcg_at_10": 0.09704051885244688,
+    "supplementary_recall_at_10": 0.02746688327237896,
+    "sampled_auc": 0.5331623759972722,
+    "primary_queries": 16,
+    "supplementary_queries": 16,
+    "auc_valid_queries": 16,
+    "auc_skipped_queries": 0,
+    "auc_positive_items": 428,
+    "auc_negative_items": 4280
+  },
+  "reload_identical_top10": true,
+  "reload_max_score_delta": 0.0,
+  "train_seconds": 0.5343649169954006,
+  "full_catalog_score_seconds": 0.24802750600792933,
+  "output_sha256": {
+    "top10.parquet": "9cc708199528e0cf42264160885f7d6069b7123169eb5f0f6b07cec11ed4e909",
+    "auc_scores.parquet": "f16be413d300f31fa3104d9324e0910d8c26f615168bf619661d79e569986b0c",
+    "query_metrics.csv": "b38542543c1ca9e24dadd87c9803a158303305712ad6a2185354e0d2d588feee",
+    "metrics.csv": "37e4b55b555eb442b5db6f927e988136187c35740cd91ac59ff674c7bfb5b2b3",
+    "best.pt": "e1c67fc1a325433f113e9ac471b5b67cc8d3a6b77b7f3fa538cc327cef795f83",
+    "last.pt": "e1c67fc1a325433f113e9ac471b5b67cc8d3a6b77b7f3fa538cc327cef795f83"
+  },
+  "last_epoch_max_gradient_norms": {
+    "encoder": 0.06584376096725464,
+    "scoring_head": 0.8122161030769348
+  },
+  "embedding_mean_fallback": {
+    "candidate_items": 114,
+    "positive_query_items": 46,
+    "top10_hits": 0
+  },
+  "item_bias_mean_fallback": {
+    "candidate_items": 114,
+    "positive_query_items": 46,
+    "top10_hits": 0
+  },
+  "parameter_count": 328041,
+  "real_scalar_parameter_count": 361193,
+  "training_support": {
+    "history_input_rows": 1640,
+    "catalog_loss_rows": 3382,
+    "tied_item_embedding_rows": 3382,
+    "item_bias_rows": 3382
+  }
+}

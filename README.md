@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. The data-preparation workflow traces each source row through cleaning and produces the net-retained basket events that all four models will use. The research plan describes the training and evaluation workflow under development. [Research and development plan v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
+This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. All four models share the same net-retained basket histories, candidate catalogs and monthly labels. MF, LightGBM and LRURec have completed CPU pilot runs. Colab GPU verification for both sequence models and the formal model comparison remain pending. [Research and development plan v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
 
 ## Run instructions
 
@@ -48,6 +48,28 @@ The query builder writes to `data/processed/d2/`. Look in `manifest.json` for ve
 
 **How to read delayed credits.** Before customer eligibility and catalog filtering, 758 of 246,998 distinct month–customer–SKU positives in February–October reach zero when later observed credits are included. The project owner supplied a separate February–November workbook count of 788/301,922 (0.26%), including 30 for November. These fractions describe changes in recorded labels. Computing a change in Recall@10 or NDCG@10 would require eligible per-query labels and model rankings. Model selection uses October validation alone. [Pre-test audit table](results/d2_audit/label_delay_pretest.csv) · [Label-delay audit](scripts/audit_label_delay.py) · [Definitions and denominators](docs/data_protocol.md)
 
+### D3–D5 · Model pilots
+
+Open the model pilot notebook from GitHub in Colab. It defaults to `MODEL=mf` and `RUN_SIZE=smoke`. Choose `mf` or `lightgbm` on CPU, or `lrurec` or `mamba4rec` on an NVIDIA GPU runtime. Run the cells in order. The notebook verifies the D2 inputs and saves the session in the Drive project under `experiments/model_pilots/<session>/`. Open `session.log` for the transcript and `model/run.json` for the configuration, hardware, validation metrics and reload check. [Model pilot notebook](notebooks/model_pilots.ipynb)
+
+**CPU verification.** MF, LightGBM and LRURec completed small training runs, scored the full October catalog for the selected validation customers, and reproduced their Top-10 after reloading the checkpoint. After installing the model dependencies below, reproduce these runs from the repository root. [Pilot summary](results/model_pilots/summary.csv) · [LightGBM features](docs/lightgbm_features.md)
+
+```bash
+python -m scripts.train --model mf --device cpu --smoke
+python -m scripts.train --model lightgbm --device cpu --smoke
+python -m scripts.train --model lrurec --device cpu --smoke
+```
+
+**GPU verification pending.** LRURec still needs its Colab GPU pilot. Mamba4Rec's native CUDA kernels could not run on the CPU cloud host. Its GPU check begins with a synthetic parameter update, followed by the real D2 pilot. The notebook prepares the respective GPU environment. Within that environment the corresponding commands are as follows. [LRURec adaptation](docs/lrurec_adaptation.md) · [Mamba4Rec environment and adaptation](docs/mamba4rec_adaptation.md) · [Recorded Mamba4Rec preflight](results/model_pilots/mamba4rec/preflight.json)
+
+```bash
+python -m scripts.train --model lrurec --device cuda --smoke
+python -m src.models.mamba4rec_adapter --preflight --output runs/mamba4rec/preflight.json
+python -m scripts.train --model mamba4rec --device cuda --smoke
+```
+
+The CLI reads `data/processed/d2/` and writes each run to `runs/<model>/<UTC timestamp>/`. Use `--data-dir` or `--output-dir` for other locations. To resume, specify the same output directory and add `--resume`. Completed runs include `metrics.csv`, `query_metrics.csv`, `top10.parquet`, `auc_scores.parquet` and the best model (`best.pt` or LightGBM's `best.txt`). Omitting `--smoke`, or choosing `baseline` in the notebook, fits one configuration to the full training data. D6 separately compares registered configurations and seeds before opening November test labels. [Training CLI](scripts/train.py) · [Model configurations](configs/)
+
 ### Technical reference · Inspect an invoice
 
 1. Open the transaction notebook in Google Colab on a CPU runtime. In **File → Open notebook**, use the GitHub tab and the notebook's GitHub URL, or upload the downloaded `.ipynb` file. [Transaction records and baskets](docs/technical/transaction_records.ipynb)
@@ -73,7 +95,14 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-For local notebook execution, Python export or tests, run `python -m pip install -r requirements-dev.txt` in the same environment. In a local notebook frontend, select that environment’s Python kernel. To run the test suite, use `python -m pytest -q`. The D1/D2 commands use NumPy, pandas, openpyxl, Matplotlib and PyArrow on CPU. The model pilots will record their own tested dependencies and GPU runtimes.
+For local notebook execution, Python export or tests, run `python -m pip install -r requirements-dev.txt` in the same environment. In a local notebook frontend, select that environment’s Python kernel. To run the test suite, use `python -m pytest -q`. The D1/D2 commands use NumPy, pandas, openpyxl, Matplotlib and PyArrow on CPU.
+
+For the Linux CPU model pilots, install the additional model packages and the CPU PyTorch build in the active environment. The GPU notebook sets up each sequence model separately, including the CUDA-enabled PyTorch build and native wheels documented for Mamba4Rec. [Model requirements](requirements-models.txt) · [Mamba4Rec GPU setup](docs/mamba4rec_adaptation.md)
+
+```bash
+python -m pip install -r requirements-models.txt
+python -m pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+```
 
 ## Random seeds
 
@@ -98,6 +127,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | Verified locally | [Training EDA results](results/training_eda/) | Training-window totals and denominators, monthly volume, distributions and product popularity in JSON, CSV and PNG formats. |
 | Available on execution | Output cells in [the transaction notebook](docs/technical/transaction_records.ipynb) | Workbook dimensions, invoice lines, and basket totals. |
 | Verified locally | [D2 manifest](data/processed/d2/manifest.json) · [Monthly coverage](data/processed/d2/coverage.csv) · [Parquet tables](data/processed/d2/) | Cutoff-specific inputs, cohort counts, and deterministic training and validation samples. |
+| CPU pilots verified | [Pilot summary](results/model_pilots/summary.csv) | Model, runtime and small-run validation evidence. GPU checks for both sequence models remain pending. |
 | Planned | `results/test_metrics.csv` | Four-model comparison on the frozen test protocol. |
 | Planned | `results/cohort_coverage.csv`, `results/segment_metrics.csv`, `results/case_study.csv` | Population coverage, metrics by group, and individual recommendations. |
 | Planned | `experiments/exp_XXX/diagnostics_panel.png` | Diagnostic figure for an experiment. |

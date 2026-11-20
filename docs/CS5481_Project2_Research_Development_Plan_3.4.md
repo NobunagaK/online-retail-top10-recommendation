@@ -6,7 +6,7 @@
 
 给定客户在截止日前的购买历史，为指定的后续月份推荐 10 种商品，目标是在该月购买、且到月末扣除已匹配冲销后仍有正余量的商品。正式实验并列比较 **MF、LightGBM、LRURec 和 Mamba4Rec**。四个模型各自训练、独立给同一批客户和候选商品打分，都参加验证选模和最终测试。
 
-**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。D1 训练期 EDA 覆盖 2010 年 12 月 1 日至 2011 年 9 月 30 日完成的正价商品购物篮，第 2 节记录实测结果。D2 在 CPU 上构建各截止点的历史、候选、查询及独立存储的训练与验证标签。下一项模型试训是 MF。各模型的 Colab 兼容性、实际耗时及排名成绩仍待测量。
+**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。D1 训练期 EDA 覆盖 2010 年 12 月 1 日至 2011 年 9 月 30 日完成的正价商品购物篮，第 2 节记录实测结果。D2 在 CPU 上构建各截止点的历史、候选、查询及独立存储的训练与验证标签。D3 至 D5 先完成四个模型的代码，再按 MF、LightGBM、LRURec、Mamba4Rec 顺序逐个验收。MF、LightGBM、LRURec 已通过本地 CPU 试训，两种序列模型在 Colab NVIDIA GPU 上的验收待完成。D6 正式调参、选模及测试待开展。
 
 [研究计划](#research) · [代码开发计划](#development) · [评分与提交清单](#submission) · [材料与来源](#sources)
 
@@ -144,7 +144,7 @@ $$
 
 ### 7. 工作平台与文件位置
 
-按团队确定的网页流程实施。**四个模型的试训和正式训练均在 Google Colab。** MF 和 LightGBM 使用 CPU 运行时，LRURec 与 Mamba4Rec 使用 NVIDIA GPU 运行时。GPT Work 或 Codex 协助开发、审阅代码和分析日志。组员用 MacBook、浏览器或 Cursor 处理 GitHub 提交，并在 Colab 网页启动对应版本的 notebook。
+四个模型使用同一 Git 版本和 D2 清单。先在开发环境检查实现，再在 Google Colab 完成团队所用硬件的试训与正式训练。MF、LightGBM 使用 CPU，LRURec 与 Mamba4Rec 在 Colab 使用 NVIDIA GPU。LRURec 另可在本地 CPU 检查实现。组员在 notebook 中一次选择一个模型，将该次运行的证据保存在 Drive。[Colab 模型试训 notebook](../notebooks/model_pilots.ipynb)
 
 | 位置 | 已有内容或计划用途 | 开发时的约定 |
 |---|---|---|
@@ -171,30 +171,30 @@ $$
 | [逐行决定](../data/processed/row_decisions.csv.gz)、[已知客户账](../data/processed/signed_ledger_b.csv.gz)、[冲销分配](../results/credit_allocations.csv.gz)、[训练期快照](../data/processed/training_basket_events.csv.gz) | 通过 Excel 行号连接正单和冲销，保留原篮完成时间、有效件数、按原单计价的金额和明细数。全期产物供回顾，较早截止点按当时可见记录重放。 | 避免重复扣减、将费用当作商品，或把未来冲销写入过去的历史。 |
 | `queries.parquet`、目录与标签清单 | 每条查询保存 `query_id, customer_id, split, history_end, target_start, target_end, catalog_id`。历史、标签和目录分开存储，通过 ID 关联。 | 训练快照看见自己的未来，或某个模型私下删掉难客户。 |
 | `histories.parquet`、`item_vocab` | 历史含 `customer_id, history_end, history_item_ids, history_len`。由查询的客户与截止点关联。目标商品集合独立保存。变长历史按时间排序、保留复购，两种序列模型从同一行取最近 `L` 个有效 ID。 | 不同模型采用不同历史、把当月标签写入输入、或把填充当商品。 |
-| `score(query_batch, candidate_item_ids)` | 四个模型按传入候选顺序返回二维分数。统一评价器按该查询目录筛选、处理并列、生成 Top-10 并汇总。 | 上游自动过滤复购商品，或不同模型使用不同候选集。 |
+| `make_model(data, config, device)`、`train_epoch(data)`、`score(query, item_ids)`、`save(path)`、`restore(path)` | 每次传入一条客户–月份查询，模型按传入的商品顺序返回一维原始分数。统一运行脚本读取 D2 候选目录，逐条查询评分，再按商品编码打破并列并计算指标。 | 保留复购资格，使四个模型使用同一候选集。 |
 | `top10.parquet`、`metrics.csv` | `top10` 保存 `model, seed, split, query_id, item_id, rank, score`。逐轮日志保存轮次或树数、耗时、验证两指标、适用的训练损失。 | 结果仅以屏幕截图存在，无法重算命中或定位最佳轮次。 |
 | `auc_pairs.parquet`、`auc_scores.parquet` | 每个评估分区保存固定的 `split, query_id, item_id, label` 清单，记录抽样种子、样本清单哈希。分数表保存 `model, seed, split, query_id, item_id, score`，按 `split, query_id, item_id` 关联标签，分模型、种子复算 AUC。 | 只保留前十名会丢失 AUC 样本。分清训练负采样与评估抽样，可防止不同模型使用不同评估样本。 |
-| `run.json`、`status.json`、权重或模型文件 | 记录 `run_id`、代码和上游提交、数据和协议哈希、超参数、种子、软件版本、设备、耗时、早停、采样和截断决策。 | 断线后无法区分任务状态或识别生成结果的配置。 |
+| `run.json`、运行中的 `progress.json`、权重或模型文件 | 记录 `run_id`、代码和上游提交、数据和协议哈希、超参数、种子、软件版本、设备、耗时、早停、采样和截断决策。 | 断线后无法区分任务状态或识别生成结果的配置。 |
 
 D2 将共用的查询、历史、候选、特征和样本表写入 `data/processed/d2/`；模型分数、检查点和实际排名表由 D3 至 D7 生成。大规模评分可以按客户或商品分块。遍历每个查询的完整候选目录时，保留 Top-10、固定 AUC 样本的原始分数和案例所需分数。对少量查询同时计算整批及分块结果，核验排名与抽样分数一致。
 
 ### 9. 开发与训练步骤及完成标准
 
-本项目集中完成，按 D0 至 D7 的顺序推进。按表中依赖衔接各步，并逐步保存验收产物。D0 的 CPU 和 Drive 检查通过后即可开展 D1。Mamba 环境检查在 D5b 真实试训前通过。若小样本试训显示 Colab 额度不足，在正式搜索前按第 5 节统一缩减搜索预算。
+D1 和 D2 准备并检验共用数据。先基于这份数据写完 D3 至 D5 的四套模型，再按下表顺序逐个验收。Mamba 的原生运行环境须在真实数据 GPU 试训前验证。依据实测开销按第 5 节确定 D6 的搜索预算。
 
 | 执行步骤 | 编码任务与拟建模块 | 完成标准与交给下一步的产物 |
 |---|---|---|
 | **D0**　入口与 GPU 环境 | 使用 README、固定版本的 CPU 依赖、D2 数据协议和项目 notebook 复现数据准备。CPU 验证 Drive 输入，NVIDIA GPU 单独检验 Mamba 依赖和一次合成序列更新。 | 能读取原 Excel 并核对哈希。保存实际 GPU、PyTorch、CUDA、扩展版本和试训结果，开发数据协议可同步进行。 |
 | **D1**　清洗与探索性分析 | 可重现的异常证据、经营和客户账、冲销分配、有效购物篮及训练期探索。[D1 运行入口](../scripts/prepare_data.py) | 核对两笔全额冲销大单、12 条同分钟匹配、部分冲销和正负金额。10 月 1 日快照有 258,532 次篮内商品事件。 |
 | **D2**　查询、共享序列与评价器 | `scripts/build_queries.py` 生成快照、候选、词表与隔离的标签。`src/data/sequences.py` 导出两种序列模型共用的变长历史。[统一评价器](../src/evaluation/ranking.py) 计算 Top-10、两个主指标及第 5 节规定的抽样 ROC AUC。 | 手算指标通过。追加未来交易后训练快照不变。四个模型的查询与目录相同，两种序列模型移除填充后的商品与先后顺序逐条相同。 |
-| **D3**　MF 基线 | `src/models/mf.py`、`configs/mf.yaml`，实现嵌入、训练采样和独立评分。 | 小数据上 loss 有限、参数更新。从原始数据到验证 Top-10 完整运行，保存和加载后排名一致，留下一个已工作的模型接口示例。 |
-| **D4**　LightGBM | `src/features/asof.py`、`src/models/lightgbm_ranker.py`、`configs/lightgbm.yaml`，实现按历史截止点构造特征和排序组。 | 手工核对一个客户–商品对的频次和最近购买日期。检查组连续、组大小总和、正负例互斥、没有来自未来的特征，保存验证表现与特征字典。 |
-| **D5a**　LRURec | `src/models/lrurec_adapter.py`、`configs/lrurec.yaml`、`docs/lrurec_adaptation.md`。接官方线性循环与共享序列，把月度损失放入共用的 `src/models/sequence_objective.py`。 | 用短、长、含复购序列检查掩码。在 Colab GPU 上用真实小样本跑 1 个 epoch，保存、重载、复算验证 Top-10。 |
-| **D5b**　Mamba4Rec | `src/models/mamba4rec_adapter.py`、`configs/mamba4rec.yaml`、`docs/mamba4rec_adaptation.md`。接官方 Mamba 层与评分方法，直接调用 D2 序列、`sequence_objective.py` 和统一评价器。 | 在锁定依赖的 Colab GPU 上跑相同真实小样本，检验右侧填充、有效位置、多正例损失、参数更新、断点恢复和全候选 Top-10。 |
-| **D6**　调参、选模、测试 | `scripts/train.py`、`scripts/tune.py`、`scripts/freeze_experiment.py`、`scripts/evaluate.py`。按第 5 节执行四个模型的搜索预算与冻结。 | `tuning.csv` 包括所有尝试、种子及失败原因。`selection.json` 先于测试结果生成。四个模型的两个主指标可从冻结的 Top-10 与标签复算，抽样 ROC AUC 可从同一分区的抽样清单和对应分数复算。 |
+| **D3**　MF 基线 | 使用 D2 共用的训练正负样本拟合客户和商品的嵌入及偏置，按查询归一化二元交叉熵并加 L2 正则。[MF 模型](../src/models/mf.py) · [配置](../configs/mf.yaml) | 手算损失，核对参数更新、无训练信号商品的均值回退、全目录验证及重载后排名一致。 |
+| **D4**　LightGBM | 按历史截止点构造特征，使用与 MF 相同的 D2 正负样本组成连续排序组。[特征](../src/features/asof.py) · [排序模型](../src/models/lightgbm_ranker.py) · [配置](../configs/lightgbm.yaml) | 手工核对一个客户–商品对的频次和最近购买日期。检查组连续、组大小总和、正负例互斥、没有来自未来的特征，保存验证表现与特征字典。 |
+| **D5a**　LRURec | [LRURec 适配器](../src/models/lrurec_adapter.py) · [配置](../configs/lrurec.yaml) · [适配说明](lrurec_adaptation.zh-CN.md)。接官方线性循环与共享序列，把月度损失放入共用的 `src/models/sequence_objective.py`。 | 用短、长、含复购序列检查掩码。在 Colab GPU 上用真实小样本跑 1 个 epoch，保存、重载、复算验证 Top-10。 |
+| **D5b**　Mamba4Rec | [Mamba4Rec 适配器](../src/models/mamba4rec_adapter.py) · [配置](../configs/mamba4rec.yaml)。接官方 Mamba 层与评分方法，直接调用 D2 序列、`sequence_objective.py` 和统一评价器。 | 在锁定依赖的 Colab GPU 上跑相同真实小样本，检验右侧填充、有效位置、多正例损失、参数更新、断点恢复和全候选 Top-10。 |
+| **D6**　调参、选模、测试 | 基于单模型训练入口增加正式搜索、四模型选择和锁定测试。按第 5 节执行四个模型的搜索预算与冻结。 | `tuning.csv` 包括所有尝试、种子及失败原因。`selection.json` 先于测试结果生成。四个模型的两个主指标可从冻结的 Top-10 与标签复算，抽样 ROC AUC 可从同一分区的抽样清单和对应分数复算。 |
 | **D7**　解释与交付 | `scripts/make_report_tables.py` 导出主表、覆盖、分组和案例。完成技术报告、README 和 5 分钟展示。 | 一名组员在新环境按 README 跑通小样本，并从冻结预测重建主表。报告数字与表格一致，组长完成 Canvas 提交和展示排练。 |
 
-D2 通过后，用 MF 检查从训练到验证的完整流程，再依次试训 LightGBM、LRURec 和 Mamba4Rec。四个模型的小样本验证通过后进入 D6，完成正式训练与调参，用验证集选模并冻结配置，然后统一测试。D7 用冻结的预测完成分析与提交。
+分别归档每个模型的试训结果，注明实际设备和待完成的硬件检查。四个模型逐项验收且 GPU 检查通过后进入 D6，完成正式训练、调参和验证选模，冻结四份配置后再评估十一月测试集。D7 使用冻结预测。
 
 ### 10. 已有运行入口与后续接口
 
@@ -216,45 +216,26 @@ python scripts/build_queries.py --project-root .
 python -m scripts.audit_label_delay
 ```
 
-**以下为 D3–D7 的拟开发模型接口。** 将在对应的 Colab 运行时执行。各会话共用同一代码版本、数据协议、Drive 项目根目录和实验标识。冻结清单与模型输出使用相对于同一 Drive 项目根目录的路径。
+**按顺序独立运行四项模型试训。** 每条命令读取对应的 YAML 配置，使用同一 D2 数据目录和按固定方法选出的试训样本。神经模型训练一个 epoch，LightGBM 拟合少量树，随后均在完整候选目录上评分；保存并重载后，复核排名和 AUC 抽样分数。Colab notebook 每次运行一个选定的模型。[运行脚本](../scripts/train.py) · [模型输入](../src/models/pilot_data.py) · [Colab notebook](../notebooks/model_pilots.ipynb)
 
 ```bash
 # CPU 上运行模型试训
-python -m scripts.train --model mf --config configs/mf.yaml --smoke
-python -m scripts.train --model lightgbm --config configs/lightgbm.yaml --smoke
+python -m scripts.train --model mf --smoke --device cpu
+python -m scripts.train --model lightgbm --smoke --device cpu
 # 在各自的 GPU 环境试训
-python -m scripts.train --model lrurec --config configs/lrurec.yaml --smoke
-python -m scripts.train --model mamba4rec --config configs/mamba4rec.yaml --smoke
+python -m scripts.train --model lrurec --smoke --device cuda
+python -m src.models.mamba4rec_adapter --preflight --output runs/mamba4rec/preflight.json
+python -m scripts.train --model mamba4rec --smoke --device cuda
 ```
 
-四项试训通过后，各环境在训练集拟合、在验证集选参。汇齐四个模型的验证记录后，执行一次配置冻结。
+每次运行在 `runs/<model>/` 下创建独立目录。用 `--output-dir` 指定持久目录，中断后在同一路径加 `--resume` 恢复。`run.json` 记录设备、软件、哈希、用时和验证摘要；`metrics.csv`、`query_metrics.csv`、`top10.parquet` 和 `auc_scores.parquet` 可用于核对各项结果。
 
-```bash
-# CPU
-python -m scripts.tune --model mf --selection-split validation
-python -m scripts.tune --model lightgbm --selection-split validation
-# 各自的 GPU 环境
-python -m scripts.tune --model lrurec --selection-split validation
-python -m scripts.tune --model mamba4rec --selection-split validation
-# 汇总并冻结
-python -m scripts.freeze_experiment --suite core --output results/selection.json
-```
-
-在各模型的原运行环境加载同一冻结清单。下文的 MODEL 由 notebook 设为当前模型的注册名。每个模型分别输出验证与测试结果，每次加载三个种子的选定权重。每个分区的评估抽样清单由一个会话生成，其余会话从 Drive 读取并核对哈希。四份测试输出共同构成一轮锁定测试。
-
-```bash
-python -m scripts.evaluate --model "$MODEL" --split validation --selection results/selection.json
-python -m scripts.evaluate --model "$MODEL" --split test --selection results/selection.json
-# 所有模型的输出齐全后汇总
-python -m scripts.make_report_tables --suite core
-```
-
-`core` 注册 `mf`、`lightgbm`、`lrurec`、`mamba4rec`。`--smoke` 只用训练期小样本和相应验证查询，在指定设备上完成一次更新、评分、保存和重载。正式训练、验证与测试入口分开。测试前校验 `selection.json` 含四个模型及匹配的配置、种子和协议，测试表和日志使用独立目录。
+**D6 和 D7 尚待实施。** 硬件验收完成后预登记搜索预算，在训练查询上拟合各配置，按约定种子比较验证成绩，再把四个模型的选定配置及权重冻结至 `selection.json`。冻结后才构建十一月测试标签和 AUC 抽样清单，分别归档四项锁定测试的结果，以冻结预测生成提交表格。
 
 ### 11. Colab 网页训练、实验记录与复核
 
 1. GPT Work 或 Codex 起草代码，由 Codex 按任务准备 GitHub PR，组员审阅并确定 Git 提交。组员在 Colab 网页检出该提交、选择运行时并点击运行。notebook 第一条日志写入提交 SHA、数据协议、`run_id`、软件版本和实际设备。Drive 项目根目录可配置为 `/content/drive/MyDrive/CS5481_Project2_OnlineRetail`。
-2. Colab 在 Drive 写入逐轮 `metrics.csv`、`status.json` 与实际权重。MF、LRURec 和 Mamba4Rec 保存验证最佳 `best.pt` 与可续训 `last.pt`。后者包括模型、优化器、已经完成的轮次、随机数状态和实际使用的调度器与早停状态。神经模型按完整 epoch 保存断点，恢复时按轮次去重日志。LightGBM 保存最佳迭代数与原生模型，已完成的配置直接复用，中断的配置按原种子重跑。首次真实试训核对保存、重载和中断处理。
+2. 运行脚本保存逐轮 `metrics.csv` 和含运行状态的 `run.json`。训练期间的 `progress.json` 指向已完成的轮次。神经模型训练状态包含参数、优化器、已完成轮次和随机数状态，早停进度由运行脚本保存。`best.pt` 供排名复核，`last.pt` 供恢复训练。LightGBM 保存最佳迭代的原生模型。重载后复核排名和 AUC 抽样分数。
 3. 每次验证实验把小型摘要放进 GitHub `experiments/exp_XXX/`。`dynamics.json` 记录收敛、验证指标、资源开销，`diagnostics_panel.png` 展示曲线，`sliced_error_analysis.md` 展示短／长历史与复购等切片。适用时为神经模型写 `layer_health.json` 记录梯度和参数诊断。冻结的 Top-10、AUC 样本分数、权重和细粒度日志留在 Drive。
 4. 组员用 GPT Work 或 Codex 读取验证摘要和实验账本。小样本阶段诊断实现、确定预算，再预登记正式配置。所有根据完整验证结果比较的搜索配置均计入预算并留痕。修复会改变结果的代码时标明受影响运行，在相同协议下重跑。结束调参、冻结配置后才打开测试标签。网页提醒为选用功能，训练脚本负责早停和保存。
 
@@ -300,11 +281,13 @@ python -m scripts.make_report_tables --suite core
 - [ ] **5 分钟课堂展示。** 建议 35 秒交代任务、数据及四个模型，65 秒讲清洗与时间切分，55 秒用一图解释四种打分方法，105 秒展示共同指标、两种序列模型的差异和一个具体失误，40 秒说明结论与改进。合计 300 秒。
 - [ ] **核对四模型实验。** 主结果表各有 MF、LightGBM、LRURec、Mamba4Rec 一行，四行样本与候选哈希相同。给出验证选模依据、测试 NDCG@10、Recall@10、补充的抽样 ROC AUC、各模型耗时和相同客户的推荐例子。
 
-### 15. 从 D2 数据协议到 MF 试训
+### 15. 从 D2 数据协议到四模型独立验收
 
 使用 `data/processed/d2/manifest.json` 识别每次实验的数据、截止点、随机种子与产物版本。二月至九月为训练目标；十月验证与之后的十一月测试共用十月一日的历史。已生成 5,430 条训练查询和 758 条合格的十月验证查询。D2 notebook 逐步演示查询、统一序列和指标验算。[运行清单](../data/processed/d2/manifest.json) · [月度覆盖](../data/processed/d2/coverage.csv) · [月度查询与评价](../notebooks/monthly_queries_and_evaluation.ipynb) · [统一排名评价器](../src/evaluation/ranking.py)
 
-下一项模型工作为 D3 的 MF 试训。用共用训练正负样本拟合，给验证集全部候选评分，核对保存和重载后的排名，记录代码、环境、种子与耗时。在序列模型试训前继续并行核验 D0 的 GPU 兼容性。待四个模型的配置冻结后再解封测试标签及评分。
+**有序试训结果。** 四种模型的代码备齐后，再开始逐个验收。共用小样本包括 64 名训练客户、206 条训练查询、30,816 个采样训练对。每个完成 CPU 试训的模型均给 16 条十月验证查询中的每一条打分，候选商品各 3,495 个。AUC 样本中共有 428 个不同的查询–商品正例和 4,280 个抽样负例。MF、LightGBM、LRURec 依次通过 CPU 验收。重载后的 Top-10 排名完全一致，已保存的 Top-10 与 AUC 样本的分数最大绝对误差均为 0。[模型试训汇总](../results/model_pilots/summary.csv)
+
+Mamba4Rec 环境检查发现本机的 PyTorch 为 CPU 版，且没有 NVIDIA 设备。LRURec 在 Colab 的 GPU 试训，以及 Mamba4Rec 的原生扩展检查和 GPU 试训仍待完成。D6 正式搜索尚未启动，十一月测试集继续封存至四个模型的配置冻结。
 
 <a id="sources"></a>
 

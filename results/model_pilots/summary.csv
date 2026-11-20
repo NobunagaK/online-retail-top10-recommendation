@@ -1,0 +1,6 @@
+model,device,status,train_queries,validation_queries,candidates_per_query,recall_at_10,ndcg_at_10,sampled_query_macro_auc,reload_max_score_delta
+mf,cpu,verified,206,16,3495,0.011616006120316465,0.06116342799085077,0.671425142751356,0.0
+lightgbm,cpu,verified,206,16,3495,0.16824234890611858,0.32521375426481525,0.9152594853323747,0.0
+lrurec,cpu,verified,206,16,3495,0.028958548435919124,0.09704051885244688,0.5331623759972722,0.0
+lrurec,cuda,awaiting_colab_gpu,,,,,,,
+mamba4rec,cuda,awaiting_colab_gpu,,,,,,,
