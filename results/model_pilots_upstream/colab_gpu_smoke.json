@@ -1,0 +1,52 @@
+{
+  "drive_project": "MyDrive/CS5481_Project2_OnlineRetail",
+  "runs": [
+    {
+      "model": "lrurec",
+      "source": "saved notebook output",
+      "evidence": "https://github.com/NobunagaK/online-retail-top10-recommendation/blob/8a66b9f1dee361969a2afc0c085ed9e5a166cb39/notebooks/model_pilots.ipynb",
+      "drive_session": "experiments/model_pilots/lrurec/20261120T164624Z_smoke_afe94217",
+      "upstream_commit": "e02a559",
+      "python": "3.13.16",
+      "gpu": "Tesla T4",
+      "torch": "2.14.1+cu130",
+      "validation_queries": 16,
+      "recall_at_10": 0.029110364212734902,
+      "ndcg_at_10": 0.09298221291825817,
+      "sampled_auc": 0.5593557272260847,
+      "reload_identical_top10": true,
+      "reload_max_score_delta": 0.0
+    },
+    {
+      "model": "lrurec",
+      "source": "project owner report",
+      "drive_session": "experiments/model_pilots/lrurec/20261120T153029Z_smoke_27b07e05",
+      "upstream_commit": "e02a559",
+      "python": "3.13",
+      "gpu": "Tesla T4",
+      "validation_queries": 16,
+      "recall_at_10": 0.02911,
+      "ndcg_at_10": 0.09298,
+      "sampled_auc": 0.55936,
+      "reload_identical_top10": true,
+      "reload_max_score_delta": 0.0
+    },
+    {
+      "model": "mamba4rec",
+      "source": "project owner report",
+      "drive_session": "experiments/model_pilots/mamba4rec/20261120T163637Z_smoke_0bb0e341",
+      "upstream_commit": "44a0c84",
+      "python": "3.13",
+      "gpu": "Tesla T4",
+      "torch": "2.7.0+cu126",
+      "recbole": "1.2.0",
+      "preflight": "passed",
+      "validation_queries": 16,
+      "recall_at_10": 0.02345,
+      "ndcg_at_10": 0.07513,
+      "sampled_auc": 0.50397,
+      "reload_identical_top10": true,
+      "reload_max_score_delta": 0.0
+    }
+  ]
+}

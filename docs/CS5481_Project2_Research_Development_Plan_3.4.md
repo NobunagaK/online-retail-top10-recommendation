@@ -6,7 +6,7 @@
 
 给定客户在截止日前的购买历史，为指定的后续月份推荐 10 种商品，目标是在该月购买、且到月末扣除已匹配冲销后仍有正余量的商品。正式实验并列比较 **MF、LightGBM、LRURec 和 Mamba4Rec**。四个模型各自训练、独立给同一批客户和候选商品打分，都参加验证选模和最终测试。
 
-**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。D1 训练期 EDA 覆盖 2010 年 12 月 1 日至 2011 年 9 月 30 日完成的正价商品购物篮，第 2 节记录实测结果。D2 在 CPU 上构建各截止点的历史、候选、查询及独立存储的训练与验证标签。D3 至 D5 先完成四个模型的代码，再按 MF、LightGBM、LRURec、Mamba4Rec 顺序逐个验收。MF、LightGBM 和作者版本 LRURec 已有 CPU 试训记录。当前 D5 实现直接实例化作者固定版本的模型类。两种序列模型在 Colab NVIDIA GPU 上的验收待完成。D6 正式调参、选模及测试待开展。
+**课程口径与进度**　项目 PDF 第 3 页原文写有 “exactly three”。按组员向任课老师确认的最新口径，三个是最低数量，可以增加。团队保留课堂 MF、指定的 LightGBM 和近期模型 LRURec，并将同在近期算法清单中的 Mamba4Rec 纳入正式实验。月份、预算和评分细则是本组的研究设计。团队已核对课程材料、原始 Excel 和上游源码，并在本地用完整工作簿复现了异常分析、逐行清洗和购物篮聚合。D1 训练期 EDA 覆盖 2010 年 12 月 1 日至 2011 年 9 月 30 日完成的正价商品购物篮，第 2 节记录实测结果。D2 在 CPU 上构建各截止点的历史、候选、查询及独立存储的训练与验证标签。D3 至 D5 先完成四个模型的代码，再按 MF、LightGBM、LRURec、Mamba4Rec 顺序逐个验收。MF、LightGBM 和作者版本 LRURec 已有 CPU 试训记录。当前 D5 实现直接实例化作者固定版本的模型类。两种序列模型均已在 Colab Tesla T4 上完成小样本验收。D6 正式调参、选模及测试待开展。
 
 [研究计划](#research) · [代码开发计划](#development) · [评分与提交清单](#submission) · [材料与来源](#sources)
 
@@ -288,7 +288,7 @@ python -m scripts.train --model mamba4rec --smoke --device cuda
 
 **有序试训结果。** 四种模型的代码备齐后，再开始逐个验收。共用小样本包括 64 名训练客户、206 条训练查询、30,816 个采样训练对。每个完成 CPU 试训的模型均给 16 条十月验证查询中的每一条打分，候选商品各 3,495 个。AUC 样本中共有 428 个不同的查询–商品正例和 4,280 个抽样负例。`69fcba3` 的 CPU 记录涵盖 MF、LightGBM 和旧版独立实现 LRURec。重载后的 Top-10 排名完全一致，已保存的 Top-10 与 AUC 样本的分数最大绝对误差均为 0。[模型试训汇总](../results/model_pilots/summary.csv)
 
-修订分支 `feat/upstream-sequence-models` 从 `69fcba3` 创建。作者版本 LRURec 在相同 CPU 小样本上训练一轮，Recall@10 为 0.02911，NDCG@10 为 0.09083。重载权重后 Top-10 完全一致。RecBole 1.2.0 另通过了 CPU 依赖检查。LRURec 在 Colab 的 GPU 试训，以及 Mamba4Rec 的原生扩展检查和 GPU 试训仍待完成。D6 正式搜索尚未启动，十一月测试集继续封存至四个模型的配置冻结。[修订分支试训记录](../results/model_pilots_upstream/summary.csv)
+修订分支 `feat/upstream-sequence-models` 从 `69fcba3` 创建。作者版本 LRURec 在相同 CPU 小样本上训练一轮，Recall@10 为 0.02911，NDCG@10 为 0.09083。重载权重后 Top-10 完全一致。RecBole 1.2.0 另通过了 CPU 依赖检查。Colab T4 的 LRURec 试训输出已保存到 notebook。项目负责人报告 Mamba4Rec 原生预检及 T4 试训通过。两者均在 16 条十月验证查询上完成重载核验。D6 正式选模仍需完整验证集结果，十一月测试集继续封存至四个模型的配置冻结。[GPU 试训记录来源](../results/model_pilots_upstream/colab_gpu_smoke.json) · [修订分支试训记录](../results/model_pilots_upstream/summary.csv)
 
 <a id="sources"></a>
 

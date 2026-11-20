@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列适配器均调用作者固定版本的推荐模型源码。两种序列模型的 Colab GPU 核验及正式模型比较仍待完成。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列适配器均调用作者固定版本的推荐模型源码。两种序列模型均已在 Colab Tesla T4 上完成小样本试训。正式调参、选模和测试另行开展。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 ## 运行说明
 
@@ -50,7 +50,7 @@ python -m scripts.audit_label_delay
 
 ### D3–D5 · 模型试训
 
-在 Colab 的 GitHub 选项中，选择 `feat/upstream-sequence-models` 分支并打开 `notebooks/model_pilots.ipynb`。选择 `smoke`，每次运行一个模型。MF 与 LightGBM 使用 CPU，两种序列模型的 Colab 试训使用 NVIDIA GPU。依次运行所有单元格，notebook 会校验 D2，将 LRURec 源码缓存在 Drive 项目的 `cache/lrurec/` 中，本次运行目录为 `experiments/model_pilots/<模型>/<会话>/`，其中的 `session.log` 和 `model/run.json` 分别记录运行日志与验证结果。[模型试训 notebook](notebooks/model_pilots.ipynb)
+在 Colab 的 GitHub 选项中，选择包含下述 GPU 配置的项目版本，打开 `notebooks/model_pilots.ipynb`。选择 `smoke`，每次运行一个模型。MF 与 LightGBM 使用 CPU，两种序列模型的 Colab 试训使用 NVIDIA GPU。依次运行所有单元格，notebook 会校验 D2，将 LRURec 源码缓存在 Drive 项目的 `cache/lrurec/` 中，本次运行目录为 `experiments/model_pilots/<模型>/<会话>/`，其中的 `session.log` 和 `model/run.json` 分别记录运行日志与验证结果。[模型试训 notebook](notebooks/model_pilots.ipynb) · [在 Colab 打开已核验的 notebook](https://colab.research.google.com/github/NobunagaK/online-retail-top10-recommendation/blob/8a66b9f1dee361969a2afc0c085ed9e5a166cb39/notebooks/model_pilots.ipynb)
 
 **CPU 运行。** 安装下方模型依赖后，从仓库根目录执行以下命令。LRURec 的源码命令会获取作者的固定文件并校验摘要。可用 `LRUREC_CACHE_DIR` 指定持久缓存，或用 `LRUREC_REFERENCE_FILE` 指定已有的同版本离线文件。[MF、LightGBM 试训结果](results/model_pilots/summary.csv) · [序列模型运行记录](results/model_pilots_upstream/summary.csv)
 
@@ -61,7 +61,7 @@ python -m src.models.lrurec_source
 python -m scripts.train --model lrurec --device cpu --smoke
 ```
 
-**GPU 核验。** 在 Colab 中先准备对应模型的独立环境。Mamba4Rec 使用仓库附带的作者 MIT 许可源码和真正的 RecBole 依赖。先用预检核对原生 GPU 前向计算、梯度、参数更新与重载，再运行真实 D2 试训。[LRURec 适配说明](docs/lrurec_adaptation.zh-CN.md) · [Mamba4Rec 运行环境](docs/mamba4rec_adaptation.zh-CN.md)
+**GPU 核验。** 在 Colab 选择 Python 3.13 和 Tesla T4。第 5 号单元格在 Mamba4Rec 独立环境中从 CUDA 12.6 wheel 源安装 PyTorch 2.7.0（`2.7.0+cu126`），读取其 C++ ABI 标记，再用 `--no-deps` 安装匹配的原生扩展。LRURec 使用 Colab 自带的 GPU 版 PyTorch。Mamba4Rec 使用仓库附带的作者 MIT 许可源码和真正的 RecBole 依赖。先用预检核对原生 GPU 前向计算、梯度、参数更新与重载，再运行真实 D2 试训。[LRURec 适配说明](docs/lrurec_adaptation.zh-CN.md) · [Mamba4Rec 运行环境](docs/mamba4rec_adaptation.zh-CN.md)
 
 ```bash
 python -m scripts.train --model lrurec --device cuda --smoke
@@ -129,7 +129,7 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | 运行后可查看 | [交易明细 notebook](docs/technical/transaction_records.ipynb) 的输出单元格 | 工作表行列数、发票明细和购物篮汇总。 |
 | 已本地核验 | [D2 清单](data/processed/d2/manifest.json) · [月度覆盖统计](data/processed/d2/coverage.csv) · [Parquet 表](data/processed/d2/) | 各截止点的共用输入、客户覆盖分母、可复现的训练与验证抽样。 |
 | CPU 试训记录 | [MF、LightGBM](results/model_pilots/summary.csv) | 同表保留 `69fcba3` 的旧版独立实现 LRURec，供历史对照。 |
-| 作者版本序列模型 | [运行状态与指标](results/model_pilots_upstream/summary.csv) | 按模型保存 LRURec CPU 试训及 Mamba4Rec 环境检查，以各行的设备和完成状态为准。 |
+| 作者版本序列模型 | [运行状态与指标](results/model_pilots_upstream/summary.csv) | 按设备列出试训结果，Mamba4Rec 适配说明记录 GPU 会话位置。 |
 | 计划生成 | `results/test_metrics.csv` | 在冻结的测试协议下比较四个模型。 |
 | 计划生成 | `results/cohort_coverage.csv`、`results/segment_metrics.csv`、`results/case_study.csv` | 客户覆盖、分组指标和个案推荐结果。 |
 | 计划生成 | `experiments/exp_XXX/diagnostics_panel.png` | 各次实验的诊断图。 |

@@ -1,5 +1,5 @@
-# Install the CUDA build of torch 2.6.0 first, then the two native wheels
-# selected for that build by notebooks/model_pilots.ipynb.
+# In Colab, install torch 2.7.0 from the cu126 index before these dependencies.
+# The notebook then installs the matching native wheels with --no-deps.
 -r requirements-models.txt
 recbole==1.2.0
 transformers==4.48.3

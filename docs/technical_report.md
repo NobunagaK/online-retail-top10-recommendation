@@ -2,7 +2,7 @@
 
 [English](technical_report.md) · [简体中文](technical_report.zh-CN.md)
 
-This project asks which ten products a customer will buy in a later calendar month and still have a positive recorded quantity for at month-end. We have completed transaction preparation (D1), monthly query construction and evaluator checks (D2). MF, LightGBM and the authors’ LRURec have completed CPU pilots. Both sequence adapters use pinned public recommender code. Full-cohort training, model selection and final testing remain pending. We use D. Chen (2015), *Online Retail*, UCI Machine Learning Repository, DOI 10.24432/C5BW33, licensed CC BY 4.0. The transformations below derive from the supplied 541,909-line, eight-column workbook. [Dataset and attribution](https://doi.org/10.24432/C5BW33) · [Course specification, p. 3](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
+This project asks which ten products a customer will buy in a later calendar month and still have a positive recorded quantity for at month-end. We have completed transaction preparation (D1), monthly query construction and evaluator checks (D2). MF, LightGBM and the authors’ LRURec have completed CPU pilots. Both sequence adapters use pinned public recommender code and completed Colab T4 smoke validation. Full-cohort training, model selection and final testing remain pending. We use D. Chen (2015), *Online Retail*, UCI Machine Learning Repository, DOI 10.24432/C5BW33, licensed CC BY 4.0. The transformations below derive from the supplied 541,909-line, eight-column workbook. [Dataset and attribution](https://doi.org/10.24432/C5BW33) · [Course specification, p. 3](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
 
 ## From transaction lines to purchase history
 
@@ -24,7 +24,7 @@ October validation (T+1) and November testing (T+2) use the same history ending 
 
 MF and LightGBM share within-query training negatives. LightGBM groups candidates by customer and target month. LRURec and Mamba4Rec use the same time-ordered history, preserving repeat purchases. All four models will rank every item in the same query catalog. The primary metrics are query-macro Recall@10 and NDCG@10, with sampled query-macro ROC AUC as a supplement. October validation alone will guide model and hyperparameter selection before November test evaluation. [Inputs and sampling seeds](../data/processed/d2/manifest.json) · [Evaluator](../src/evaluation/ranking.py) · [Experiment plan](CS5481_Project2_Research_Development_Plan_3.4.en.md)
 
-## Model implementations and CPU pilot
+## Model implementations and small-sample validation
 
 MF scores customer–item pairs with a latent-factor dot product and biases. LightGBM ranks customer–month groups with LambdaRank. LRURec trains the authors’ `LRU` (commit `e02a559`) on left-padded retail histories. Its final state scores eligible items through the shared item embeddings and biases. Mamba4Rec instantiates the authors’ `Mamba4Rec` (commit `44a0c84`) with RecBole, using right-padded item IDs and lengths. D2 supplies the chronological split, full cutoff catalog, monthly multi-positive loss inputs and repeat-purchase eligibility to both models. [LRURec adaptation](lrurec_adaptation.md) · [Mamba4Rec adaptation](mamba4rec_adaptation.md)
 
@@ -32,12 +32,14 @@ The CPU pilot uses seed 42, **206 training queries and 16 October validation que
 
 | Model | Recall@10 | NDCG@10 | Sampled ROC AUC |
 |---|---:|---:|---:|
-| MF | 0.01162 | 0.06116 | 0.67143 |
-| LightGBM | 0.16824 | 0.32521 | 0.91526 |
-| LRURec, authors’ `LRU` | 0.02911 | 0.09083 | 0.55049 |
+| MF, CPU | 0.01162 | 0.06116 | 0.67143 |
+| LightGBM, CPU | 0.16824 | 0.32521 | 0.91526 |
+| LRURec, authors’ `LRU`, CPU | 0.02911 | 0.09083 | 0.55049 |
+| LRURec, authors’ `LRU`, Tesla T4 | 0.02911 | 0.09298 | 0.55936 |
+| Mamba4Rec, Tesla T4 (owner report) | 0.02345 | 0.07513 | 0.50397 |
 | LRURec, independent implementation at `69fcba3` (historical) | 0.02896 | 0.09704 | 0.53316 |
 
-The authors’ LRURec completed one CPU epoch and reproduced its scores and Top-10 exactly after reload. Of 3,495 candidates, 114 used mean fallback. These products accounted for 46 validation positives and zero Top-10 hits. The historical row shows what the independent implementation scored on the same pilot cohort. Full-cohort validation on all 758 eligible customers is still required for model selection. The real RecBole dependency passed a separate CPU check. Native Mamba4Rec training, its validation score and both Colab GPU pilots are pending. [RecBole CPU check](../results/model_pilots_upstream/mamba4rec/recbole_cpu_import.json) [Baseline and historical runs](../results/model_pilots/summary.csv) · [Upstream model pilot records](../results/model_pilots_upstream/summary.csv)
+The authors’ LRURec completed one CPU epoch and reproduced its scores and Top-10 exactly after reload. Of 3,495 candidates, 114 used mean fallback. These products accounted for 46 validation positives and zero Top-10 hits. The historical row shows what the independent implementation scored on the same pilot cohort. Full-cohort validation on all 758 eligible customers is still required for model selection. The real RecBole dependency passed a separate CPU check. Both T4 pilots covered 16 October queries and reproduced Top-10 with zero score change after reload. The notebook records the LRURec run. The project owner reported the separate Mamba4Rec preflight and pilot from Drive. [T4 run sources](../results/model_pilots_upstream/colab_gpu_smoke.json) · [RecBole CPU check](../results/model_pilots_upstream/mamba4rec/recbole_cpu_import.json) · [Baseline and historical runs](../results/model_pilots/summary.csv) · [Upstream model pilot records](../results/model_pilots_upstream/summary.csv)
 
 ## Delayed feedback and label stability
 
