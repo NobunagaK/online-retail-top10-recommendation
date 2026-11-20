@@ -141,7 +141,7 @@ def test_adamw_exemptions_and_cosine_resume(tmp_path):
         net.layer_norm = nn.LayerNorm(3)
         net.params_log = nn.Parameter(torch.ones(3))
         return SequenceRunner(net, toy_data(), padding="left", seed=42, learning_rate=0.01, epochs=4,
-                              weight_decay=0.1, optimizer=optimizer, lr_schedule=schedule)
+                              weight_decay=0.1, optimizer=optimizer, lr_scheduler=schedule)
     model = runner()
     assert isinstance(model.optimizer, torch.optim.AdamW)
     assert set(model.training_policy["decay_exempt_parameters"]) == {
@@ -156,7 +156,7 @@ def test_adamw_exemptions_and_cosine_resume(tmp_path):
     for original, replay in zip(model.network.parameters(), resumed.network.parameters()):
         torch.testing.assert_close(original, replay, atol=0, rtol=0)
     assert resumed.scheduler.get_last_lr() == model.scheduler.get_last_lr()
-    old = runner("adam", "constant")
+    old = runner("adam", "none")
     with pytest.raises(ValueError, match="incompatible optimizer"):
         old.restore(path)
     old.train_epoch()
@@ -164,4 +164,4 @@ def test_adamw_exemptions_and_cosine_resume(tmp_path):
     legacy = torch.load(path, weights_only=True)
     del legacy["training_policy"], legacy["scheduler"]
     torch.save(legacy, path)
-    assert runner("adam", "constant").restore(path).epoch == 1
+    assert runner("adam", "none").restore(path).epoch == 1

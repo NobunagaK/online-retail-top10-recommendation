@@ -186,7 +186,7 @@ def make_model(data, config, device):
                           learning_rate=config.get("learning_rate", 0.001),
                           weight_decay=config.get("weight_decay", 0.01),
                           batch_size=config.get("batch_size", 64), seed=seed, device=device,
-                          optimizer=config.get("optimizer", "adam"), lr_schedule=config.get("lr_schedule", "constant"),
+                          optimizer=config.get("optimizer", "adam"), lr_scheduler=config.get("lr_scheduler", "none"),
                           epochs=config.get("epochs", 100))
 
 

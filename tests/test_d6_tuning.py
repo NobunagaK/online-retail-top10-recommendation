@@ -21,7 +21,10 @@ def test_budget_length_comparison_and_hardware_ties():
         if model in {"lrurec", "mamba4rec"}:
             assert [configs[c]["max_length"] for c in ("02", "03", "04")] == [64, 128, 256]
             assert {k for k in configs["02"] if configs["02"][k] != configs["04"][k]} == {"max_length"}
-            assert {k for k in configs["03"] if configs["03"][k] != configs["05"][k]} == {"lr_schedule"}
+            assert {k for k in configs["03"] if configs["03"][k] != configs["05"][k]} == {"lr_scheduler"}
+            baseline = {**configs["01"], **train.optimizer_settings(model, configs["01"])}
+            assert {k for k in baseline if baseline[k] != configs["08"][k]} == {"optimizer", "lr_scheduler"}
+            assert configs["08"]["lr_scheduler"] == "cosine"
             assert configs["02"]["optimizer"] == "adamw" and configs["02"]["patience"] == 15
     a = dict(id="first", ndcg_at_10=.2, recall_at_10=.3, train_seconds=6, hardware_keys=["T4"])
     b = dict(a, id="second", train_seconds=3)
@@ -79,6 +82,9 @@ def test_restart_freeze_and_score_without_real_november(tmp_path, monkeypatch):
     ledger_path = root / "tuning.csv"
     assert set(pd.read_csv(ledger_path).status) == {"failed", "complete"}
     successful = pd.read_csv(ledger_path).query("status == 'complete'")
+    assert successful.optimizer.eq("adam").all() and successful.lr_scheduler.eq("none").all()
+    imported = tune.read_json(tune.run_dir(root, "mf", "01", 42) / "run.json")
+    assert imported["optimizer"] == "adam" and imported["lr_scheduler"] == "none"
     assert len(successful) == 3 and successful.origin.eq("verified_baseline").sum() == 1
     args.stage = "confirm"
     tune.tune(args)

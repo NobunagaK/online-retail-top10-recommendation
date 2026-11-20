@@ -107,6 +107,9 @@ def verify_run(path, model, cid, seed, config, inputs, source):
         upstream = run.get("upstream_model", {})
         if upstream.get("commit") != commit or upstream.get("source_sha256") != sha:
             raise ValueError(f"Unexpected upstream recommender in {path}")
+    effective = train.optimizer_settings(model, config)
+    if any(run.get(k, v) != v for k, v in effective.items()):
+        raise ValueError(f"Optimizer or scheduler differs from registration in {path}")
     expected_files = {best_file(model), "top10.parquet", "auc_scores.parquet", "query_metrics.csv", "metrics.csv"}
     hashes = run["output_sha256"]
     if not expected_files.issubset(hashes):
@@ -202,7 +205,8 @@ def fit_one(args, cid, seed, config, inputs, source):
     logdir.mkdir(exist_ok=True)
     attempt = logdir / f"{seed}-{started.replace(':', '')}-{uuid4().hex[:8]}.json"
     log = {"model": model, "config_id": cid, "seed": seed, "started_utc": started, "status": "running",
-           "config_json": json.dumps({**config, "seed": seed}, sort_keys=True), "origin": "fit"}
+           "config_json": json.dumps({**config, "seed": seed}, sort_keys=True), "origin": "fit",
+           **train.optimizer_settings(model, config)}
     for old in logdir.glob(f"{seed}-*.json"):
         record = read_json(old)
         if record["status"] == "running":
@@ -221,6 +225,9 @@ def fit_one(args, cid, seed, config, inputs, source):
                 copy.mkdir()
                 for name in ["run.json", *read_json(baseline / "run.json")["output_sha256"]]:
                     shutil.copyfile(baseline / name, copy / name)
+                metadata = read_json(copy / "run.json")
+                metadata.update(**train.optimizer_settings(model, config), imported_run_sha256=train.digest(baseline / "run.json"))
+                train.write_json(copy / "run.json", metadata)
                 info = verify_run(copy, model, cid, seed, config, inputs, source)
                 copy.rename(out)
         else:

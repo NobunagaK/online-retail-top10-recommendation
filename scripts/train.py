@@ -67,6 +67,12 @@ def run_lock(directory):
         yield
 
 
+def optimizer_settings(model, config):
+    if model in {"lrurec", "mamba4rec"}:
+        return {"optimizer": config.get("optimizer", "adam"), "lr_scheduler": config.get("lr_scheduler", "none")}
+    return {"optimizer": "gbdt" if model == "lightgbm" else "adam", "lr_scheduler": "none"}
+
+
 def source_digest():
     sources = [Path(__file__).resolve(), ROOT / "src/evaluation/ranking.py",
                ROOT / "src/data/sequences.py", ROOT / "src/data/monthly_queries.py",
@@ -193,7 +199,7 @@ def run_model(args, out):
     signature_fields["source_sha256"] = source_digest()
     signature = hashlib.sha256(json.dumps(signature_fields, sort_keys=True).encode()).hexdigest()
     revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True)
-    base = dict(**signature_fields, signature=signature, seed=seed, hardware=hardware,
+    base = dict(**signature_fields, **optimizer_settings(args.model, config), signature=signature, seed=seed, hardware=hardware,
                 git_commit=revision.stdout.strip() or None, protocol=data.manifest["protocol"],
                 training_queries=len(data.train_queries), validation_queries=len(data.val_queries),
                 training_pair_rows=len(data.train_pairs), validation_candidates=len(data.catalog_ids[data.val_queries.iloc[0].catalog_id]),

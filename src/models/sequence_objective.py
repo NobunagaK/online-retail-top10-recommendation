@@ -98,7 +98,7 @@ class SequenceRunner:
 
     def __init__(self, network, data, *, padding, max_length=64, learning_rate=1e-3,
                  weight_decay=0.0, batch_size=32, seed=42, device="cpu",
-                 optimizer="adam", lr_schedule="constant", epochs=100):
+                 optimizer="adam", lr_scheduler="none", epochs=100):
         if padding not in {"left", "right"} or min(max_length, batch_size) < 1:
             raise ValueError("Specify left/right padding and positive batch and sequence lengths.")
         self.data = data
@@ -116,7 +116,7 @@ class SequenceRunner:
         bias = getattr(self.network, "output_bias", None)
         self._bias_path = parameter_names[id(bias)] if bias is not None else None
         self.training_policy = {"optimizer": optimizer, "learning_rate": learning_rate,
-                                "weight_decay": weight_decay, "lr_schedule": lr_schedule}
+                                "weight_decay": weight_decay, "lr_scheduler": lr_scheduler}
         if optimizer == "adam":
             self.optimizer = torch.optim.Adam(self.network.parameters(), lr=learning_rate, weight_decay=weight_decay)
         elif optimizer == "adamw":
@@ -138,11 +138,11 @@ class SequenceRunner:
         else:
             raise ValueError(f"Unknown sequence optimizer: {optimizer}")
         self.scheduler = None
-        if lr_schedule == "cosine" and epochs > 0:
+        if lr_scheduler == "cosine" and epochs > 0:
             self.training_policy["schedule_epochs"] = epochs
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
-        elif lr_schedule != "constant":
-            raise ValueError("Use constant or cosine with a positive epoch budget.")
+        elif lr_scheduler != "none":
+            raise ValueError("Use none or cosine with a positive epoch budget.")
         self._order = torch.Generator(device="cpu").manual_seed(self.seed)
         self.epoch = 0
         self.last_grad_norm = self.last_encoder_grad_norm = self.last_head_grad_norm = 0.0
@@ -315,7 +315,7 @@ class SequenceRunner:
             # Pre-D6 checkpoints used one coupled-Adam group without a scheduler.
             group, = checkpoint["optimizer"]["param_groups"]
             policy = {"optimizer": "adam", "learning_rate": group["lr"],
-                      "weight_decay": group["weight_decay"], "lr_schedule": "constant"}
+                      "weight_decay": group["weight_decay"], "lr_scheduler": "none"}
         if policy != self.training_policy:
             raise ValueError("The checkpoint has an incompatible optimizer or learning-rate schedule.")
         self.network.load_state_dict(checkpoint["network"])

@@ -2,7 +2,7 @@
 # Row 1 is the original baseline, including its optimizer, scheduler and patience.
 seeds: [42, 2026, 3407]
 finalists: 2
-sequence_tuning_defaults: {optimizer: adamw, lr_schedule: constant, patience: 15}
+sequence_tuning_defaults: {optimizer: adamw, lr_scheduler: none, patience: 15}
 models:
   mf:
     - {}
@@ -27,16 +27,17 @@ models:
     - {max_length: 64}
     - {max_length: 128}
     - {max_length: 256}
-    - {max_length: 128, lr_schedule: cosine}
-    - {max_length: 128, hidden_dim: 128, dropout: 0.1, weight_decay: 0.0001, lr_schedule: cosine}
-    - {max_length: 256, hidden_dim: 128, dropout: 0.3, learning_rate: 0.0003, weight_decay: 0.0, lr_schedule: cosine}
-    - {max_length: 256, dropout: 0.1, learning_rate: 0.0003, weight_decay: 0.0001}
+    - {max_length: 128, lr_scheduler: cosine}
+    - {max_length: 128, hidden_dim: 128, dropout: 0.1, weight_decay: 0.0001, lr_scheduler: cosine}
+    - {max_length: 256, hidden_dim: 128, dropout: 0.3, learning_rate: 0.0003, weight_decay: 0.0, lr_scheduler: cosine}
+    # Matched to 01 except optimizer and scheduler, including the original patience.
+    - {lr_scheduler: cosine, patience: 10}
   mamba4rec:
     - {}
     - {max_length: 64}
     - {max_length: 128}
     - {max_length: 256}
-    - {max_length: 128, lr_schedule: cosine}
-    - {max_length: 128, num_layers: 1, d_state: 32, learning_rate: 0.003, dropout: 0.1, weight_decay: 0.0001, lr_schedule: cosine}
-    - {max_length: 256, num_layers: 1, hidden_dim: 128, d_state: 32, learning_rate: 0.0003, dropout: 0.3, weight_decay: 0.0, lr_schedule: cosine}
-    - {max_length: 256, hidden_dim: 128, d_state: 16, learning_rate: 0.0003, dropout: 0.1, weight_decay: 0.0001}
+    - {max_length: 128, lr_scheduler: cosine}
+    - {max_length: 128, num_layers: 1, d_state: 32, learning_rate: 0.003, dropout: 0.1, weight_decay: 0.0001, lr_scheduler: cosine}
+    - {max_length: 256, num_layers: 1, hidden_dim: 128, d_state: 32, learning_rate: 0.0003, dropout: 0.3, weight_decay: 0.0, lr_scheduler: cosine}
+    - {lr_scheduler: cosine, patience: 10}
