@@ -26,3 +26,9 @@ The upstream model’s real CPU pilot used seed 42, 206 training queries and 16 
 Using that checkpoint, we also checked all 55,920 raw October scores against the authors’ complete forward pass with the same weights and independent application of the fallback rules. With chunks of 256 candidates, the adapter encoded each history once. The maximum absolute difference was 3.58 × 10⁻⁷, and all 16 ordered Top-10 lists matched. Reproduce this comparison with `python -m scripts.check_lrurec_scores --run-dir <run-directory>` using the directory containing `best.pt` and `run.json`. [Score comparison](../results/model_pilots_upstream/lrurec/author_score_check.json)
 
 The earlier independent implementation and its CPU results are archived at commit `69fcba3`. [Original CPU run](https://github.com/NobunagaK/online-retail-top10-recommendation/blob/69fcba3e9ffe8e1f558078434f240ff8a4b1eeb0/results/model_pilots/lrurec/run.json)
+
+## D6 training configuration
+
+The shared runner reads `optimizer` and `lr_scheduler`. The baseline defaults to `adam / none`, preserving the original Adam updates and fixed rate. Selecting `adamw` exempts LayerNorm, biases and LRURec’s `params_log` from weight decay. Selecting `cosine` steps the learning rate once per epoch and saves scheduler progress with the checkpoint. D6 pairs `01/08` at the original baseline settings and varies only history length across `02/03/04`. [Registered grid](../configs/d6_search.yaml) · [D6 notebook](../notebooks/d6_tuning.ipynb)
+
+Running the pinned D5 code and the D6 defaults on the same CPU with seed 42 and 16 real October validation queries produced NDCG@10 of 0.09083041086975355 in both runs. All 30 network tensors, 160 Top-10 rows and 4,708 sampled AUC scores matched exactly. The extended runner also loaded the D5 checkpoint directly. [Original D5 pilot](../results/model_pilots_upstream/lrurec/run.json)

@@ -36,3 +36,7 @@ python -m scripts.train --model mamba4rec --config configs/mamba4rec.yaml --devi
 ```
 
 A successful preflight records the concrete environment, a finite multi-positive loss, nonzero gradients in the Mamba projection, transition and output embedding, and a parameter update in the encoder and an output-only item. It compares right-padding/batch invariance at `atol=rtol=1e-4` and saved/reloaded scores at `atol=rtol=1e-5`. A failing preflight exits nonzero and records the exception. The real pilot writes its own `run.json`, metrics, validation Top-10 and model checkpoint. Report the measured runtime and metrics only for completed hardware runs. An interpreter or wheel import check alone cannot establish that selective-scan forward and backward work on the allocated device. [CUDA checks](../tests/test_mamba4rec.py) · [Training entry point](../scripts/train.py)
+
+## D6 training configuration
+
+The shared runner reads `optimizer` and `lr_scheduler`. The baseline defaults to `adam / none`, preserving the original Adam updates and fixed rate. Selecting `adamw` exempts LayerNorm, biases and Mamba’s `A_log` and `D` state parameters from weight decay. Selecting `cosine` steps the learning rate once per epoch and saves scheduler progress with the checkpoint. D6 pairs `01/08` at the original baseline settings and varies only history length across `02/03/04`. [Registered grid](../configs/d6_search.yaml) · [D6 notebook](../notebooks/d6_tuning.ipynb)

@@ -2,7 +2,7 @@
 
 [English](technical_report.md) · [简体中文](technical_report.zh-CN.md)
 
-本项目预测一位客户在后续月份会购买、且到月末仍有正余量的商品，为其推荐十种。现已完成 D1 交易清洗、D2 月度查询构建与评价器核验。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列模型的适配器均接入作者固定版本的公开推荐模型源码，已在 Colab T4 上完成小样本验证。全量训练、验证选模和最终测试尚待完成。数据来自 D. Chen（2015）的 *Online Retail*，由 UCI Machine Learning Repository 发布，DOI 为 10.24432/C5BW33，授权为 CC BY 4.0。以下统计由课程提供的原始工作簿（541,909 行、8 列）清洗、聚合而得。[数据来源与引用](https://doi.org/10.24432/C5BW33) · [课程项目要求，第 3 页](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
+本项目预测一位客户在后续月份会购买、且到月末仍有正余量的商品，为其推荐十种。现已完成 D1 交易清洗、D2 月度查询构建与评价器核验。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列模型的适配器均接入作者固定版本的公开推荐模型源码，已在 Colab T4 上完成小样本验证。项目负责人已报告四模型的完整十月起步成绩。D6 将核验原始运行记录并比较预登记配置。数据来自 D. Chen（2015）的 *Online Retail*，由 UCI Machine Learning Repository 发布，DOI 为 10.24432/C5BW33，授权为 CC BY 4.0。以下统计由课程提供的原始工作簿（541,909 行、8 列）清洗、聚合而得。[数据来源与引用](https://doi.org/10.24432/C5BW33) · [课程项目要求，第 3 页](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
 
 ## 从交易明细到购买历史
 
@@ -40,6 +40,19 @@ CPU 试训使用种子 42、**206 条训练查询和 16 条十月验证查询**�
 | LRURec，`69fcba3` 旧版独立实现（历史对照） | 0.02896 | 0.09704 | 0.53316 |
 
 作者版本的 LRURec 在 CPU 上训练一轮，重载后分数和 Top-10 全部复现。本次 3,495 种候选商品中有 114 种触发均值回退，涉及 46 个验证正例，在 Top-10 中命中 0 次。历史对照行记录旧版独立实现在同一试训样本上的结果。正式选模仍须在全部 758 位合格验证客户上比较。另在 CPU 环境实测通过了真实 RecBole 的依赖检查。两次 T4 试训均覆盖 16 条十月查询，重载后 Top-10 相同，分数变化为零。notebook 保存了 LRURec 的输出，Mamba4Rec 原生预检和试训结果由项目负责人从单独的 Drive 会话报告。[T4 试训记录来源](../results/model_pilots_upstream/colab_gpu_smoke.json) · [RecBole CPU 检查](../results/model_pilots_upstream/mamba4rec/recbole_cpu_import.json) · [基线与旧版试训记录](../results/model_pilots/summary.csv) · [作者模型试训记录](../results/model_pilots_upstream/summary.csv)
+
+## D6 调参设计与基线参照
+
+项目负责人报告的完整十月基线使用种子 42、758 条验证查询和 3,495 个候选，表中保留五位小数。正式初筛按原始运行目录核验配置、逐查询证据和权重。最终模型比较使用 `validation_metrics.csv` 中的三种子统计。
+
+| 十月起步模型 | Recall@10 | NDCG@10 | 抽样 ROC AUC |
+|---|---:|---:|---:|
+| MF | 0.10496 | 0.20795 | 0.83818 |
+| LightGBM | 0.17304 | 0.35220 | 0.90333 |
+| LRURec | 0.06768 | 0.16168 | 0.82846 |
+| Mamba4Rec | 0.06202 | 0.14422 | 0.81977 |
+
+四模型各登记八组配置，十月初筛后用三个种子复核前两组。两个序列模型均从最近 64 个事件、隐藏维 64、两层、Adam 和固定学习率起步。`01/08` 衡量优化器与调度合用的差异，`02/03/04` 单独检验历史长度，`03/05` 单独检验余弦调度。十月有 497/758 条历史超过 64 个事件，其中 276 条超过 128 个。运行后将报告各项配对差值，并结合冻结的十一月指标及分组误差解释结果。[预登记组合](../configs/d6_search.yaml) · [选模依据](CS5481_Project2_Research_Development_Plan_3.4.md) · [月度覆盖表](../data/processed/d2/coverage.csv)
 
 ## 延迟反馈与标签稳定性
 

@@ -36,3 +36,7 @@ python -m scripts.train --model mamba4rec --config configs/mamba4rec.yaml --devi
 ```
 
 预检成功时，记录实际环境、有限的多正例损失、Mamba 投影和状态转移以及输出嵌入的非零梯度，并核对编码器参数和仅作候选的商品行都已更新。右填充及不同批次下的评分误差采用 `atol=rtol=1e-4`，保存和重新加载后的评分误差采用 `atol=rtol=1e-5`。预检失败时返回非零退出码，并记录异常。真实试训单独写入 `run.json`、指标、验证集 Top-10 及模型检查点。仅在硬件运行成功后报告耗时和实测指标。只核对解释器或成功导入 wheel，尚不足以确认分配到的 GPU 能执行选择性扫描的前向与反向计算。[CUDA 检查](../tests/test_mamba4rec.py) · [训练入口](../scripts/train.py)
+
+## D6 训练配置
+
+共用训练器读取 `optimizer` 和 `lr_scheduler`。起步配置默认为 `adam / none`，沿用原 Adam 和固定学习率。显式选择 `adamw` 时，LayerNorm、偏置及Mamba 的状态参数 `A_log`、`D`免权重衰减。选择 `cosine` 时按 epoch 更新学习率，checkpoint 会保存并恢复调度进度。`01/08` 在同样的基线条件下配对比较，`02/03/04` 检验序列长度。[完整配置](../configs/d6_search.yaml) · [D6 notebook](../notebooks/d6_tuning.ipynb)

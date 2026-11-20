@@ -2,7 +2,7 @@
 
 [English](technical_report.md) · [简体中文](technical_report.zh-CN.md)
 
-This project asks which ten products a customer will buy in a later calendar month and still have a positive recorded quantity for at month-end. We have completed transaction preparation (D1), monthly query construction and evaluator checks (D2). MF, LightGBM and the authors’ LRURec have completed CPU pilots. Both sequence adapters use pinned public recommender code and completed Colab T4 smoke validation. Full-cohort training, model selection and final testing remain pending. We use D. Chen (2015), *Online Retail*, UCI Machine Learning Repository, DOI 10.24432/C5BW33, licensed CC BY 4.0. The transformations below derive from the supplied 541,909-line, eight-column workbook. [Dataset and attribution](https://doi.org/10.24432/C5BW33) · [Course specification, p. 3](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
+This project asks which ten products a customer will buy in a later calendar month and still have a positive recorded quantity for at month-end. We have completed transaction preparation (D1), monthly query construction and evaluator checks (D2). MF, LightGBM and the authors’ LRURec have completed CPU pilots. Both sequence adapters use pinned public recommender code and completed Colab T4 smoke validation. The project owner reported full October starting scores for all four models. D6 verifies the original run records and compares registered configurations. We use D. Chen (2015), *Online Retail*, UCI Machine Learning Repository, DOI 10.24432/C5BW33, licensed CC BY 4.0. The transformations below derive from the supplied 541,909-line, eight-column workbook. [Dataset and attribution](https://doi.org/10.24432/C5BW33) · [Course specification, p. 3](../resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
 
 ## From transaction lines to purchase history
 
@@ -40,6 +40,19 @@ The CPU pilot uses seed 42, **206 training queries and 16 October validation que
 | LRURec, independent implementation at `69fcba3` (historical) | 0.02896 | 0.09704 | 0.53316 |
 
 The authors’ LRURec completed one CPU epoch and reproduced its scores and Top-10 exactly after reload. Of 3,495 candidates, 114 used mean fallback. These products accounted for 46 validation positives and zero Top-10 hits. The historical row shows what the independent implementation scored on the same pilot cohort. Full-cohort validation on all 758 eligible customers is still required for model selection. The real RecBole dependency passed a separate CPU check. Both T4 pilots covered 16 October queries and reproduced Top-10 with zero score change after reload. The notebook records the LRURec run. The project owner reported the separate Mamba4Rec preflight and pilot from Drive. [T4 run sources](../results/model_pilots_upstream/colab_gpu_smoke.json) · [RecBole CPU check](../results/model_pilots_upstream/mamba4rec/recbole_cpu_import.json) · [Baseline and historical runs](../results/model_pilots/summary.csv) · [Upstream model pilot records](../results/model_pilots_upstream/summary.csv)
+
+## D6 tuning design and baseline reference
+
+The project owner reported these full October baselines for 758 queries and 3,495 candidates at seed 42, rounded to five decimals. Formal screening checks the configuration, per-query evidence and weights from each original run. The selected models will be compared using the three-seed statistics in `validation_metrics.csv`.
+
+| October baseline | Recall@10 | NDCG@10 | Sampled ROC AUC |
+|---|---:|---:|---:|
+| MF | 0.10496 | 0.20795 | 0.83818 |
+| LightGBM | 0.17304 | 0.35220 | 0.90333 |
+| LRURec | 0.06768 | 0.16168 | 0.82846 |
+| Mamba4Rec | 0.06202 | 0.14422 | 0.81977 |
+
+Each model has eight configurations screened in October and two finalists checked over three seeds. The sequence baselines start from the latest 64 events, hidden size 64, two layers, Adam and a fixed rate. Trials `01/08` estimate the combined optimizer and schedule effect, `02/03/04` isolate length, and `03/05` isolate cosine annealing. Of the 758 October queries, 497 have more than 64 events and 276 have more than 128. The results will report these paired differences alongside frozen November metrics and subgroup errors. [Registered grid](../configs/d6_search.yaml) · [Selection protocol](CS5481_Project2_Research_Development_Plan_3.4.en.md) · [Coverage](../data/processed/d2/coverage.csv)
 
 ## Delayed feedback and label stability
 

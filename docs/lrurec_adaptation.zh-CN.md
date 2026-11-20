@@ -26,3 +26,9 @@ python -m scripts.train --model lrurec --device cpu --smoke
 使用这份权重，独立应用均值回退规则后，我们还逐一对照了作者完整前向计算与项目适配器的 55,920 个十月候选分数。每块取 256 种候选商品，每条历史只编码一次。最大绝对误差为 3.58 × 10⁻⁷，16 条查询的 Top-10 商品及顺序全部一致。可运行 `python -m scripts.check_lrurec_scores --run-dir <运行目录>` 复核，其中运行目录包含 `best.pt` 和 `run.json`。[逐分对照结果](../results/model_pilots_upstream/lrurec/author_score_check.json)
 
 此前的独立实现及其 CPU 结果保存在提交 `69fcba3`。[旧版 CPU 试训记录](https://github.com/NobunagaK/online-retail-top10-recommendation/blob/69fcba3e9ffe8e1f558078434f240ff8a4b1eeb0/results/model_pilots/lrurec/run.json)
+
+## D6 训练配置
+
+共用训练器读取 `optimizer` 和 `lr_scheduler`。起步配置默认为 `adam / none`，沿用原 Adam 和固定学习率。显式选择 `adamw` 时，LayerNorm、偏置及LRURec 的 `params_log`免权重衰减。选择 `cosine` 时按 epoch 更新学习率，checkpoint 会保存并恢复调度进度。`01/08` 在同样的基线条件下配对比较，`02/03/04` 检验序列长度。[完整配置](../configs/d6_search.yaml) · [D6 notebook](../notebooks/d6_tuning.ipynb)
+
+在同一 CPU 环境，以种子 42 对 16 条真实十月验证查询重跑固定的 D5 源码及 D6 默认配置，两者均得到 NDCG@10 = 0.09083041086975355。30 个网络参数张量、160 条 Top-10 记录及 4,708 条 AUC 样本评分逐项相同。扩展后的训练器也直接载入了 D5 checkpoint。[原始 D5 试训记录](../results/model_pilots_upstream/lrurec/run.json)

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列适配器均调用作者固定版本的推荐模型源码。两种序列模型均已在 Colab Tesla T4 上完成小样本试训。正式调参、选模和测试另行开展。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列适配器均调用作者固定版本的推荐模型源码。两种序列模型均已在 Colab Tesla T4 上完成小样本试训。D6 已登记 32 组配置，可在 Colab 正式调参。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 ## 运行说明
 
@@ -71,6 +71,23 @@ python -m scripts.train --model mamba4rec --device cuda --smoke
 
 命令行默认读取 `data/processed/d2/`，将每次结果写入 `runs/<模型>/<UTC 时间戳>/`。可用 `--data-dir`、`--output-dir` 改用其他位置。续跑时指定同一输出目录并加上 `--resume`。成功运行后可查看 `metrics.csv`、`query_metrics.csv`、`top10.parquet`、`auc_scores.parquet` 及最佳模型文件（`best.pt` 或 LightGBM 的 `best.txt`）。省略 `--smoke` 或在 notebook 中选择 `baseline` 会用完整训练数据拟合一套配置。D6 将比较预先登记的配置和种子，选定模型后再打开十一月测试标签。[训练入口](scripts/train.py) · [模型配置](configs/)
 
+### D6 · 调参、冻结与测试
+
+1. 打开 D6 notebook，首次选择 `plan` 并运行全部单元格。它在 CPU 上展示 32 组登记配置。D2 数据随固定的 Git 提交读取。[D6 notebook](notebooks/d6_tuning.ipynb) · [预登记配置](configs/d6_search.yaml)
+2. 分别给四个模型选 `all`。MF、LightGBM 用 CPU，两个序列模型在 Colab 选 NVIDIA GPU。默认从 Drive 的 `experiments/model_pilots/<模型>/` 寻找既有全量 baseline，核验配置、数据、逐查询指标和权重后复用。如果要在新 GPU 上做严格配对，可在该模型首次搜索前取消勾选 `REUSE_BASELINE`，让 `01` 和 `08` 都在相同环境跑。中断后对同一模型重选 `all` 即可续跑。也可分开选 `screen` 和 `confirm`。
+3. 四模型全部完成后选一次 `freeze`，按三个种子的十月验证 NDCG@10 均值选定配置和权重。随后四个模型各选一次 `test`。十一月使用截至十月一日零时的购买历史，直接重载冻结权重评分。[选模与配对试验](docs/CS5481_Project2_Research_Development_Plan_3.4.md) · [课程题目，第 3 页](resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
+
+每个 D6 模型运行的 `run.json` 和汇总 `tuning.csv` 都有独立的 `optimizer`、`lr_scheduler` 字段。即使原基线 YAML 省略这两项，记录中也会写出实际生效值。
+
+以下为命令行示例。`--results-dir` 可指定同一持久目录，`scripts.tune` 和 `scripts.evaluate` 各按模型执行一次。
+
+```bash
+python -m scripts.tune --stage plan
+python -m scripts.tune --stage all --model lrurec --device cuda --pilots-dir experiments/model_pilots
+python -m scripts.freeze_experiment
+python -m scripts.evaluate --model lrurec --device cuda
+```
+
 ### 技术文档 · 核对一张发票
 
 1. 在 Google Colab 选择 CPU 运行时，打开交易明细 notebook。在「文件 → 打开笔记本」中，可以选择 GitHub 标签页并粘贴该文件的 GitHub 地址，也可以上传下载的 `.ipynb` 文件。[原始交易明细与购物篮](docs/technical/transaction_records.ipynb)
@@ -130,7 +147,8 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | 已本地核验 | [D2 清单](data/processed/d2/manifest.json) · [月度覆盖统计](data/processed/d2/coverage.csv) · [Parquet 表](data/processed/d2/) | 各截止点的共用输入、客户覆盖分母、可复现的训练与验证抽样。 |
 | CPU 试训记录 | [MF、LightGBM](results/model_pilots/summary.csv) | 同表保留 `69fcba3` 的旧版独立实现 LRURec，供历史对照。 |
 | 作者版本序列模型 | [运行状态与指标](results/model_pilots_upstream/summary.csv) | 按设备列出试训结果，Mamba4Rec 适配说明记录 GPU 会话位置。 |
-| 计划生成 | `results/test_metrics.csv` | 在冻结的测试协议下比较四个模型。 |
+| D6 运行时生成 | `results/tuning.csv`、`results/validation_metrics.csv` | 前者逐次记录实际 `optimizer`、`lr_scheduler`、配置、种子、成绩和失败原因。后者列出三种子均值、样本标准差和同种子的基线差值。 |
+| 冻结与测试时生成 | `results/selection.json`、`results/test_metrics.csv` | 四模型 12 份冻结权重的校验值及全部评分完成后的十一月总表。Drive 的 `results/d6_runs/` 保存权重，`results/d6_test/` 保存标签、Top-10 和 AUC 评分。 |
 | 计划生成 | `results/cohort_coverage.csv`、`results/segment_metrics.csv`、`results/case_study.csv` | 客户覆盖、分组指标和个案推荐结果。 |
 | 计划生成 | `experiments/exp_XXX/diagnostics_panel.png` | 各次实验的诊断图。 |
 
