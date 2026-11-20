@@ -1,0 +1,9 @@
+# Lecture 7 matrix factorization with the D2 monthly purchase labels.
+seed: 42
+embedding_dim: 32
+learning_rate: 0.001
+l2: 0.00001
+# Approximate number of sampled pairs per update; keep every query intact.
+batch_size: 1024
+epochs: 100
+patience: 10

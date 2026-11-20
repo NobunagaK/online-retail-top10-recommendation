@@ -1,0 +1,5 @@
+-r requirements.txt
+PyYAML==6.0.3
+lightgbm==4.6.0
+scikit-learn==1.8.0
+# Install PyTorch separately for your CPU or CUDA runtime (see README).

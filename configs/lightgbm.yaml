@@ -1,0 +1,9 @@
+epochs: 1
+seed: 42
+n_estimators: 1000
+patience: 50
+num_leaves: 31
+learning_rate: 0.05
+min_child_samples: 20
+reg_lambda: 0.0
+n_jobs: 2
