@@ -185,7 +185,9 @@ def make_model(data, config, device):
     return SequenceRunner(network, data, padding="right", max_length=config.get("max_length", 64),
                           learning_rate=config.get("learning_rate", 0.001),
                           weight_decay=config.get("weight_decay", 0.01),
-                          batch_size=config.get("batch_size", 64), seed=seed, device=device)
+                          batch_size=config.get("batch_size", 64), seed=seed, device=device,
+                          optimizer=config.get("optimizer", "adam"), lr_schedule=config.get("lr_schedule", "constant"),
+                          epochs=config.get("epochs", 100))
 
 
 def run_gpu_preflight():

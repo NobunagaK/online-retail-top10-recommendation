@@ -133,3 +133,35 @@ def test_optimizer_shuffle_dropout_and_supported_rows_resume_at_epoch_boundary(t
     incompatible = SequenceRunner(TinySequence(), data, padding="left", max_length=2, batch_size=2)
     with pytest.raises(ValueError, match="incompatible"):
         incompatible.restore(path)
+
+
+def test_adamw_exemptions_and_cosine_resume(tmp_path):
+    def runner(optimizer="adamw", schedule="cosine"):
+        net = TinySequence()
+        net.layer_norm = nn.LayerNorm(3)
+        net.params_log = nn.Parameter(torch.ones(3))
+        return SequenceRunner(net, toy_data(), padding="left", seed=42, learning_rate=0.01, epochs=4,
+                              weight_decay=0.1, optimizer=optimizer, lr_schedule=schedule)
+    model = runner()
+    assert isinstance(model.optimizer, torch.optim.AdamW)
+    assert set(model.training_policy["decay_exempt_parameters"]) == {
+        "output_bias", "params_log", "encoder.bias", "layer_norm.weight", "layer_norm.bias"}
+    assert [g["weight_decay"] for g in model.optimizer.param_groups] == [0.1, 0.0]
+    model.train_epoch()
+    path = tmp_path / "state.pt"
+    model.save(path)
+    resumed = runner().restore(path)
+    assert resumed.optimizer.param_groups[0]["lr"] == model.optimizer.param_groups[0]["lr"] < 0.01
+    assert resumed.train_epoch() == model.train_epoch()
+    for original, replay in zip(model.network.parameters(), resumed.network.parameters()):
+        torch.testing.assert_close(original, replay, atol=0, rtol=0)
+    assert resumed.scheduler.get_last_lr() == model.scheduler.get_last_lr()
+    old = runner("adam", "constant")
+    with pytest.raises(ValueError, match="incompatible optimizer"):
+        old.restore(path)
+    old.train_epoch()
+    old.save(path)
+    legacy = torch.load(path, weights_only=True)
+    del legacy["training_policy"], legacy["scheduler"]
+    torch.save(legacy, path)
+    assert runner("adam", "constant").restore(path).epoch == 1

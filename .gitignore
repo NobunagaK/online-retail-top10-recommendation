@@ -224,3 +224,8 @@ __marimo__/
 
 # Local training checkpoints and predictions.
 /runs/
+
+# Per-seed D6 weights, predictions and session logs stay on the experiment drive.
+/results/d6_runs/
+/results/d6_test/
+/experiments/d6_sessions/

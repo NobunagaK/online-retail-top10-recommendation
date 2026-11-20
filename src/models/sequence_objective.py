@@ -97,7 +97,8 @@ class SequenceRunner:
     """Optimize a tied-embedding sequence network on the shared monthly D2 tables."""
 
     def __init__(self, network, data, *, padding, max_length=64, learning_rate=1e-3,
-                 weight_decay=0.0, batch_size=32, seed=42, device="cpu"):
+                 weight_decay=0.0, batch_size=32, seed=42, device="cpu",
+                 optimizer="adam", lr_schedule="constant", epochs=100):
         if padding not in {"left", "right"} or min(max_length, batch_size) < 1:
             raise ValueError("Specify left/right padding and positive batch and sequence lengths.")
         self.data = data
@@ -114,7 +115,34 @@ class SequenceRunner:
         self._embedding_path = parameter_names[id(self.network.item_embedding.weight)]
         bias = getattr(self.network, "output_bias", None)
         self._bias_path = parameter_names[id(bias)] if bias is not None else None
-        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        self.training_policy = {"optimizer": optimizer, "learning_rate": learning_rate,
+                                "weight_decay": weight_decay, "lr_schedule": lr_schedule}
+        if optimizer == "adam":
+            self.optimizer = torch.optim.Adam(self.network.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        elif optimizer == "adamw":
+            decay, exempt, exempt_names = [], [], []
+            for prefix, module in self.network.named_modules():
+                for name, param in module.named_parameters(recurse=False):
+                    if not param.requires_grad:
+                        continue
+                    # A_log and D are exempt in the authors' Mamba implementation.
+                    if (isinstance(module, nn.LayerNorm) or name in {"bias", "params_log", "A_log", "D"}
+                            or name.endswith("_bias") or getattr(param, "_no_weight_decay", False)):
+                        exempt.append(param)
+                        exempt_names.append(f"{prefix}.{name}".lstrip("."))
+                    else:
+                        decay.append(param)
+            groups = [{"params": decay, "weight_decay": weight_decay}, {"params": exempt, "weight_decay": 0.0}]
+            self.optimizer = torch.optim.AdamW(groups, lr=learning_rate)
+            self.training_policy["decay_exempt_parameters"] = exempt_names
+        else:
+            raise ValueError(f"Unknown sequence optimizer: {optimizer}")
+        self.scheduler = None
+        if lr_schedule == "cosine" and epochs > 0:
+            self.training_policy["schedule_epochs"] = epochs
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
+        elif lr_schedule != "constant":
+            raise ValueError("Use constant or cosine with a positive epoch budget.")
         self._order = torch.Generator(device="cpu").manual_seed(self.seed)
         self.epoch = 0
         self.last_grad_norm = self.last_encoder_grad_norm = self.last_head_grad_norm = 0.0
@@ -225,6 +253,8 @@ class SequenceRunner:
                 self.catalog_support[catalog] = True
                 total_loss += float(loss.detach()) * len(query_ids)
         self.epoch += 1
+        if self.scheduler is not None:
+            self.scheduler.step()
         self.last_grad_norm, self.last_encoder_grad_norm, self.last_head_grad_norm = max_norms.tolist()
         return total_loss / len(data.train_queries)
 
@@ -262,6 +292,8 @@ class SequenceRunner:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint = {"format": 1, "settings": self._settings(), "network": self.network.state_dict(),
+                      "training_policy": self.training_policy,
+                      "scheduler": self.scheduler.state_dict() if self.scheduler is not None else None,
                       "optimizer": self.optimizer.state_dict(), "input_support": self.input_support,
                       "catalog_support": self.catalog_support, "order": self._order.get_state(),
                       "epoch": self.epoch, "seed": self.seed, "grad_norms": (self.last_grad_norm,
@@ -278,8 +310,18 @@ class SequenceRunner:
         checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         if checkpoint["format"] != 1 or checkpoint["settings"] != self._settings():
             raise ValueError("The checkpoint has incompatible vocabulary, network or batching settings.")
+        policy = checkpoint.get("training_policy")
+        if policy is None:
+            # Pre-D6 checkpoints used one coupled-Adam group without a scheduler.
+            group, = checkpoint["optimizer"]["param_groups"]
+            policy = {"optimizer": "adam", "learning_rate": group["lr"],
+                      "weight_decay": group["weight_decay"], "lr_schedule": "constant"}
+        if policy != self.training_policy:
+            raise ValueError("The checkpoint has an incompatible optimizer or learning-rate schedule.")
         self.network.load_state_dict(checkpoint["network"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
+        if self.scheduler is not None:
+            self.scheduler.load_state_dict(checkpoint["scheduler"])
         self.input_support = checkpoint["input_support"]
         self.catalog_support = checkpoint["catalog_support"]
         self._order.set_state(checkpoint["order"])

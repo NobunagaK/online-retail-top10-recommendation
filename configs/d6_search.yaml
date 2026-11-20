@@ -1,0 +1,42 @@
+# Rows are ordered before the new search. Each row overlays the model's D3-D5 YAML.
+# Row 1 is the original baseline, including its optimizer, scheduler and patience.
+seeds: [42, 2026, 3407]
+finalists: 2
+sequence_tuning_defaults: {optimizer: adamw, lr_schedule: constant, patience: 15}
+models:
+  mf:
+    - {}
+    - {embedding_dim: 16}
+    - {embedding_dim: 64}
+    - {learning_rate: 0.003}
+    - {l2: 0.000001}
+    - {l2: 0.0001}
+    - {embedding_dim: 16, learning_rate: 0.003, l2: 0.0001}
+    - {embedding_dim: 64, learning_rate: 0.003, l2: 0.000001}
+  lightgbm:
+    - {}
+    - {num_leaves: 15}
+    - {num_leaves: 63}
+    - {learning_rate: 0.03}
+    - {min_child_samples: 50}
+    - {reg_lambda: 1}
+    - {num_leaves: 15, learning_rate: 0.1, min_child_samples: 100, reg_lambda: 10}
+    - {num_leaves: 63, learning_rate: 0.03, min_child_samples: 50, reg_lambda: 1}
+  lrurec:
+    - {}
+    - {max_length: 64}
+    - {max_length: 128}
+    - {max_length: 256}
+    - {max_length: 128, lr_schedule: cosine}
+    - {max_length: 128, hidden_dim: 128, dropout: 0.1, weight_decay: 0.0001, lr_schedule: cosine}
+    - {max_length: 256, hidden_dim: 128, dropout: 0.3, learning_rate: 0.0003, weight_decay: 0.0, lr_schedule: cosine}
+    - {max_length: 256, dropout: 0.1, learning_rate: 0.0003, weight_decay: 0.0001}
+  mamba4rec:
+    - {}
+    - {max_length: 64}
+    - {max_length: 128}
+    - {max_length: 256}
+    - {max_length: 128, lr_schedule: cosine}
+    - {max_length: 128, num_layers: 1, d_state: 32, learning_rate: 0.003, dropout: 0.1, weight_decay: 0.0001, lr_schedule: cosine}
+    - {max_length: 256, num_layers: 1, hidden_dim: 128, d_state: 32, learning_rate: 0.0003, dropout: 0.3, weight_decay: 0.0, lr_schedule: cosine}
+    - {max_length: 256, hidden_dim: 128, d_state: 16, learning_rate: 0.0003, dropout: 0.1, weight_decay: 0.0001}

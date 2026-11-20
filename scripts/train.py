@@ -67,21 +67,33 @@ def run_lock(directory):
         yield
 
 
+def source_digest():
+    sources = [Path(__file__).resolve(), ROOT / "src/evaluation/ranking.py",
+               ROOT / "src/data/sequences.py", ROOT / "src/data/monthly_queries.py",
+               ROOT / "scripts/build_queries.py",
+               *sorted((ROOT / "src/models").glob("*.py")), *sorted((ROOT / "src/features").glob("*.py"))]
+    return ordered_hash([(str(p.relative_to(ROOT)), digest(p)) for p in sources])
+
+
 def evaluate(model, data):
-    raw_pairs = {key: frame for key, frame in data.auc_pairs.groupby("query_id", sort=False)}
+    return score_queries(model, data, data.val_queries, data.positives, data.auc_pairs, data.out_of_catalog_only)
+
+
+def score_queries(model, data, queries, positives, auc_pairs, supplemental):
+    """Score a supplied evaluation split against the same frozen catalog and ranking rules."""
+    raw_pairs = {key: frame for key, frame in auc_pairs.groupby("query_id", sort=False)}
     catalogs = {key: frame for key, frame in data.catalogs.groupby("catalog_id", sort=False)}
     tops, samples, rows = [], [], []
-    # No training fit or final-test split enters this scorer.
-    for query in data.val_queries.itertuples(index=False):
+    for query in queries.itertuples(index=False):
         ids = data.catalog_ids[query.catalog_id]
         scores = pd.DataFrame({"item_id": ids, "score": model.score(query, ids)})
         top, sampled, metrics = evaluate_query(catalogs[query.catalog_id], scores,
-                                               data.positives[query.query_id], raw_pairs[query.query_id],
+                                               positives[query.query_id], raw_pairs[query.query_id],
                                                all_positive_count=query.full_positive_count)
-        tops.append(top.assign(query_id=query.query_id, split="validation"))
+        tops.append(top.assign(query_id=query.query_id, split=query.split))
         samples.append(sampled)
         rows.append(dict(query_id=query.query_id, **metrics))
-    for query in data.out_of_catalog_only.itertuples(index=False):
+    for query in supplemental.itertuples(index=False):
         metrics = ranking_metrics([], [], query.full_positive_count)
         rows.append(dict(query_id=query.query_id, **metrics, sampled_auc=None, auc_requested=False,
                          auc_positive_items=0, auc_negative_items=0))
@@ -134,6 +146,10 @@ def run_model(args, out):
             pass
     hardware = {"device": device, "cpu": platform.processor() or platform.machine(),
                 "python": platform.python_version(), "packages": versions}
+    if Path("/proc/cpuinfo").is_file():
+        cpu_model = next((line.split(":", 1)[1].strip() for line in Path("/proc/cpuinfo").read_text().splitlines()
+                          if line.startswith("model name") and ":" in line), None)
+        hardware["cpu_model"] = cpu_model
     if args.model != "lightgbm":
         import torch
         torch.set_num_threads(args.threads)
@@ -153,6 +169,7 @@ def run_model(args, out):
         raise ValueError("D2 eligible labels must be present.")
     signature_fields = {
         "model": args.model, "config": config, "device": device, "threads": args.threads,
+        "runtime_hardware": hardware.get("gpu") if device == "cuda" else hardware.get("cpu_model"),
         "smoke": args.smoke, "manifest_sha256": digest(args.data_dir / "manifest.json"),
         "training_queries_sha256": ordered_hash(data.train_queries.query_id),
         "validation_queries_sha256": ordered_hash(data.val_queries.query_id),
@@ -173,11 +190,7 @@ def run_model(args, out):
     signature_fields["runtime_versions"] = {
         name: versions.get(name) for name in ["numpy", "pandas", "pyarrow", *backend_packages]}
     signature_fields["runtime_versions"]["python"] = hardware["python"]
-    sources = [Path(__file__).resolve(), ROOT / "src/evaluation/ranking.py",
-               ROOT / "src/data/sequences.py", ROOT / "src/data/monthly_queries.py",
-               ROOT / "scripts/build_queries.py",
-               *sorted((ROOT / "src/models").glob("*.py")), *sorted((ROOT / "src/features").glob("*.py"))]
-    signature_fields["source_sha256"] = ordered_hash([(str(p.relative_to(ROOT)), digest(p)) for p in sources])
+    signature_fields["source_sha256"] = source_digest()
     signature = hashlib.sha256(json.dumps(signature_fields, sort_keys=True).encode()).hexdigest()
     revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True)
     base = dict(**signature_fields, signature=signature, seed=seed, hardware=hardware,
@@ -215,6 +228,7 @@ def run_model(args, out):
         for epoch in range(len(rows)+1, epochs+1):
             if best_epoch and len(rows) - best_epoch >= patience:
                 break
+            current_lr = model.optimizer.param_groups[0]["lr"] if hasattr(model, "training_policy") else None
             start = perf_counter()
             objective = float(model.train_epoch(data))
             train_time = perf_counter() - start
@@ -226,7 +240,12 @@ def run_model(args, out):
                    "recall_at_10": metrics["recall_at_10"], "ndcg_at_10": metrics["ndcg_at_10"],
                    "sampled_auc": metrics["sampled_auc"],
                    ("boosting_validation_ndcg_at_10" if args.model == "lightgbm" else "training_loss"): objective}
+            if current_lr is not None:
+                row["learning_rate"] = current_lr
             rows.append(row)
+            if getattr(args, "report_epochs", False):
+                print(f"Epoch {epoch}/{epochs} | October NDCG@10 {row['ndcg_at_10']:.6f} | "
+                      f"fit {train_time:.1f}s | scoring {row['score_seconds']:.1f}s", flush=True)
             previous_best = best_epoch
             write_atomic(state_file(epoch), model.save)
             if args.model == "lightgbm":
@@ -272,6 +291,8 @@ def run_model(args, out):
                       output_sha256={name: digest(out / name) for name in files})
         if hasattr(model, "best_iteration"):
             result["best_iteration"] = int(model.best_iteration)
+        if hasattr(model, "training_policy"):
+            result["training_policy"] = model.training_policy
         if hasattr(model, "last_encoder_grad_norm"):
             result["last_epoch_max_gradient_norms"] = {
                 "encoder": float(model.last_encoder_grad_norm), "scoring_head": float(model.last_head_grad_norm)}
