@@ -77,6 +77,22 @@ Both months shared the frozen October 1 catalog of 3,495 items. The primary coho
 
 **What each model sees.** LightGBM receives explicit customer–item purchase counts, elapsed time since purchase and recent item popularity. The sequence models receive ordered item IDs and lengths. Repeated IDs can convey popularity implicitly. The sequence inputs omit elapsed time, quantity and store-wide purchase counts over fixed windows. A training basket contained a median of 15 distinct SKUs (90th percentile 43). Within an invoice, D2 sorts items by StockCode for reproducibility. The workbook supplies no behavioral order for these items. These differences motivate the D7 comparisons. Aggregate scores alone cannot establish how much any specific feature or within-basket ordering contributed. [Feature dictionary](lightgbm_features.md) · [Sequence construction](../src/data/sequences.py) · [Basket-size distribution](../results/training_eda/distribution_summary.csv)
 
+### Evaluation coverage and the ten-item recall limit
+
+| Measure under the frozen protocol | October validation | November test |
+|---|---:|---:|
+| Primary customers / customers with a net valid purchase that month | 758 / 1,357 (55.86%) | 935 / 1,657 (56.43%) |
+| Primary customers buying more than ten in-catalog items | 585 / 758 | 720 / 935 |
+| Maximum primary Recall@10 with complete knowledge of the targets | 53.30% | 55.04% |
+| Maximum primary Recall@10 when restricted to previously seen items | 33.37% | 35.24% |
+| Targets absent from that customer’s pre-October history / all primary targets | 14,408 / 25,051 (57.51%) | 17,030 / 30,879 (55.15%) |
+
+**Only 445 customers belonged to both primary cohorts.** Another 313 appeared only in October and 490 only in November. All 490 had eligible training records. To see whether LightGBM’s month-to-month gain also holds for the same customers, D7 can compare paired scores for those 445 and report the two month-specific groups separately. [Cohort and target calculation](data_protocol.md#reproduce-the-evaluation-cohorts-and-targets)
+
+**For a customer who bought 20 distinct in-catalog items that month, ten correct recommendations yield 50% recall.** The upper bound in the table averages each customer’s best attainable recall with ten slots. Catalog coverage imposes a further limit. Counting out-of-catalog purchases in supplementary Recall@10 lowers LightGBM’s November score from 18.71% to 17.55%. Adding just the one customer with only out-of-catalog purchases and zero hits would give 18.69%. Most of the drop comes from counting out-of-catalog purchases by customers already in the primary cohort. [Locked test metrics](../results/test_metrics.csv) · [Recall definition](../src/evaluation/ranking.py)
+
+**Repeat buying and product discovery often coexist for the same customer.** In November, 824 of 935 customers bought both previously seen and previously unseen items relative to their history frozen on October 1. An item absent at that cutoff could have been bought in October. Of the 10,643 October validation targets that repeated an earlier purchase, 5,947 (55.88%) were visible within the last 64 events and 9,106 (85.56%) within the last 256. The longer history exposed a previous purchase for 3,159 additional targets across 373 customers. Determining which of these targets gained a Top-10 hit requires the models’ frozen rankings. [History and target calculation](data_protocol.md#reproduce-the-evaluation-cohorts-and-targets)
+
 ### Model size and training time
 
 | Model | Baseline `01` size | Selected model size | Selected fits, training seconds (range over three seeds) |

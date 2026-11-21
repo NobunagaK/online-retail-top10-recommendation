@@ -45,3 +45,55 @@ Closing each month gives earlier purchases more time to accumulate credits. An O
 A retrospective audit compares the original month-end positives to the same purchase month's balance at the end of the workbook. Its unit is one **month–customer–SKU** before any evaluation-cohort or catalog filtering. The February–September training months lose 653 of 203,020 such positives. October loses 105 of 43,978 (0.239%). Together, February–October lose 758 of 246,998 (0.307%). September's 149 losses accrue over the rest of the observed workbook, including credits in November and December. This descriptive audit is separate from the model inputs. [Month-by-month audit](../results/d2_audit/label_delay_pretest.csv) · [Audit implementation](../scripts/audit_label_delay.py)
 
 The project owner's independent February–November workbook check reported **788 of 301,922 positives (0.261%)**, including 30 November positives. The ten-month figure includes the held-out month and is attributed to that check. The default D2 run constructs training and validation only. For the report, state that few monthly labels changed under the longer, unequal observation periods. Measuring a change in Recall@10 or NDCG@10 requires ranked predictions and the corresponding evaluation cohorts. The label-change fraction alone cannot establish its magnitude.
+
+## Reproduce the evaluation cohorts and targets
+
+Run this Python block from the repository root in the project environment after model selection. It reads the D2 October tables and rebuilds November labels with the same D1 ledger, credit allocations and cutoff code used in the locked evaluation. The archived primary-query and positive totals provide independent checks. Each target is one distinct in-catalog SKU per eligible customer and month. “Previously seen” uses the customer's entire net purchase history before October 1, including for November. A length cap counts the last events **before** deduplicating SKUs. [Locked label construction](../scripts/evaluate.py) · [October metrics](../results/validation_metrics.csv) · [November metrics](../results/test_metrics.csv)
+
+```python
+from pathlib import Path
+
+import pandas as pd
+
+from scripts.evaluate import november_tables
+from src.data.monthly_queries import HISTORY_END
+from src.models.pilot_data import PilotData
+
+root = Path.cwd()
+data = PilotData(root / "data/processed/d2")
+histories = data.read("histories")
+history = histories.loc[histories.history_end.eq(HISTORY_END)].set_index("customer_id").history_item_ids
+october = {name: data.read(name).query("split == 'validation'") for name in ("cohorts", "labels")}
+november = november_tables(root, data)
+
+
+def customer_counts(items, past):
+    return {"targets": len(items), "repeats": len(items.intersection(past)),
+            "last64": len(items.intersection(past[-64:])), "last256": len(items.intersection(past[-256:]))}
+
+
+customers = {}
+for split, tables in [("validation", october), ("test", november)]:
+    cohorts = tables["cohorts"]
+    labels = tables["labels"].query("eligible and in_catalog")
+    targets = labels.groupby("customer_id").item_id.agg(set)
+    customers[split] = set(targets.index)
+    counts = pd.DataFrame([customer_counts(items, history.at[c]) for c, items in targets.items()])
+    size, repeat = counts.targets, counts.repeats
+    last64, last256 = counts.last64, counts.last256
+    scores = pd.read_csv(root / "results" / f"{split}_metrics.csv").set_index("model")
+    assert scores.primary_queries.eq(len(targets)).all() and scores.auc_positive_items.eq(size.sum()).all()
+    print(split, "primary / active", len(targets), int(cohorts.active.sum()))
+    print("over ten / recall ceiling", int((size > 10).sum()), (size.clip(upper=10) / size).mean())
+    print("repeat-only recall ceiling", (repeat.clip(upper=10) / size).mean())
+    print("new to frozen history / all targets", int(size.sum() - repeat.sum()), int(size.sum()))
+    print("buyers of both", int((repeat.gt(0) & repeat.lt(size)).sum()))
+    print("repeat targets: full, last 64, last 256", int(repeat.sum()), int(last64.sum()), int(last256.sum()))
+    print("customers gaining repeat evidence", int((last256 > last64).sum()))
+    lightgbm = scores.loc["lightgbm"]
+    print("recall: primary, adding zero-only customers, supplementary",
+          lightgbm.recall_at_10_mean,
+          lightgbm.recall_at_10_mean * lightgbm.primary_queries / lightgbm.supplementary_queries,
+          lightgbm.supplementary_recall_at_10_mean)
+print("shared primary customers", len(customers["validation"] & customers["test"]))
+```
