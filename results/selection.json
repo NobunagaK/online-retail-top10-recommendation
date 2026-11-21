@@ -1,0 +1,336 @@
+{
+  "protocol": "v3.4_monthly_net_retained_v1",
+  "registration_sha256": "5d39fe7d41939a9fd7f3893df7bbcb4f4fa35fb1db91c34e3a30370c6e76fb8f",
+  "trainer_sha256": "8430e55cd74d11857ec2a326e16d663ff154be2165b2148d9f627bebe63cd977",
+  "manifest_sha256": "2c43ea52949cf92c6d9f6377cbc2e43685647a7be6d3315c0b0e35cae517f086",
+  "selected_model": "lightgbm",
+  "models": {
+    "mf": {
+      "config_id": "03",
+      "config": {
+        "seed": 42,
+        "embedding_dim": 64,
+        "learning_rate": 0.001,
+        "l2": 1e-05,
+        "batch_size": 1024,
+        "epochs": 100,
+        "patience": 10
+      },
+      "weights": [
+        {
+          "seed": 42,
+          "path": "d6_runs/mf/03/42/best.pt",
+          "sha256": "59bdd0c341ae4050a0c4761e5b135ba32c0c23a6f2c141f1c4407592b6c38268",
+          "run_sha256": "13ee292b43811b3036716dd5ca3cb869c0544ef8b966b5df1ae4bcfa8b9c9aa5",
+          "best_epoch": 15,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 2026,
+          "path": "d6_runs/mf/03/2026/best.pt",
+          "sha256": "7cd48208bebedce470dc89c72520adb1353d5d5d7ffc7f4962956c58bdd0b90b",
+          "run_sha256": "ec2f4edaed5f90dda5f1665c2eccbbe9d7c905afe961375594dd63309d84f00f",
+          "best_epoch": 15,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 3407,
+          "path": "d6_runs/mf/03/3407/best.pt",
+          "sha256": "715ca8558a678835d9eb5c4c74e138bceeaff7695540768362eb18b70a1934d6",
+          "run_sha256": "639e1eee183a9418a8c69a2520abc2273235a94ab3384e5cf262c3c3e1f0bbf2",
+          "best_epoch": 15,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        }
+      ],
+      "finalists": {
+        "03": {
+          "ndcg_at_10_mean": 0.23514468330393726,
+          "ndcg_at_10_sd": 0.0012729437887263814,
+          "recall_at_10_mean": 0.11558705439453462,
+          "recall_at_10_sd": 0.0008702699495107247,
+          "sampled_auc_mean": 0.843969358540652,
+          "sampled_auc_sd": 0.0005891172325361083,
+          "supplementary_recall_at_10_mean": 0.11055357589092406,
+          "supplementary_recall_at_10_sd": 0.000829461734753864,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        },
+        "08": {
+          "ndcg_at_10_mean": 0.2313343437022316,
+          "ndcg_at_10_sd": 0.0041553880286145,
+          "recall_at_10_mean": 0.1149720784872789,
+          "recall_at_10_sd": 0.0007314255336719671,
+          "sampled_auc_mean": 0.8459745207729822,
+          "sampled_auc_sd": 0.0022006482946410337,
+          "supplementary_recall_at_10_mean": 0.10977529834350228,
+          "supplementary_recall_at_10_sd": 0.0006373747163636495,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        }
+      }
+    },
+    "lightgbm": {
+      "config_id": "06",
+      "config": {
+        "epochs": 1,
+        "seed": 42,
+        "n_estimators": 1000,
+        "patience": 50,
+        "num_leaves": 31,
+        "learning_rate": 0.05,
+        "min_child_samples": 20,
+        "reg_lambda": 1,
+        "n_jobs": 2
+      },
+      "weights": [
+        {
+          "seed": 42,
+          "path": "d6_runs/lightgbm/06/42/best.txt",
+          "sha256": "ddd5a8799a31db2dad908d471e275d0a4c42966411e38bcabc0644c571400868",
+          "run_sha256": "af41397c14f847806097df2772dad4c447b85922e367617d83135a112ca3c858",
+          "best_epoch": 1,
+          "best_iteration": 226,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 2026,
+          "path": "d6_runs/lightgbm/06/2026/best.txt",
+          "sha256": "b50f9dc9b100b80832908ae2c1e84e7bba7c7e1151c7102c44ee686a2c853826",
+          "run_sha256": "9dd5f9e7deedc56e6b209f32c91a099e0664c605c16ecbead8d5816aa1e755bc",
+          "best_epoch": 1,
+          "best_iteration": 297,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 3407,
+          "path": "d6_runs/lightgbm/06/3407/best.txt",
+          "sha256": "a8110e72a612aef70a4dcde4d7de3e7dbc1b8b6f0ecea44e40bb29ecf5cc1540",
+          "run_sha256": "4c5e26be17ce86bf1fdd416fc311030bd458ff441cc5b80b95fc36a5f65ca71f",
+          "best_epoch": 1,
+          "best_iteration": 348,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        }
+      ],
+      "finalists": {
+        "05": {
+          "ndcg_at_10_mean": 0.35298809200149256,
+          "ndcg_at_10_sd": 0.003152191580330384,
+          "recall_at_10_mean": 0.17304287837591975,
+          "recall_at_10_sd": 0.0011156653784482552,
+          "sampled_auc_mean": 0.9033596706864061,
+          "sampled_auc_sd": 0.00010989941343445244,
+          "supplementary_recall_at_10_mean": 0.16664801342562155,
+          "supplementary_recall_at_10_sd": 0.0010880390111294976,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        },
+        "06": {
+          "ndcg_at_10_mean": 0.3547439411132379,
+          "ndcg_at_10_sd": 0.0010690957806602209,
+          "recall_at_10_mean": 0.17318689427699993,
+          "recall_at_10_sd": 0.001071786934524312,
+          "sampled_auc_mean": 0.9033613191371294,
+          "sampled_auc_sd": 0.00011466444058380426,
+          "supplementary_recall_at_10_mean": 0.16680693143049022,
+          "supplementary_recall_at_10_sd": 0.0010497741217551334,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        }
+      }
+    },
+    "lrurec": {
+      "config_id": "07",
+      "config": {
+        "seed": 42,
+        "epochs": 100,
+        "patience": 15,
+        "max_length": 256,
+        "hidden_dim": 128,
+        "num_layers": 2,
+        "dropout": 0.3,
+        "batch_size": 64,
+        "learning_rate": 0.0003,
+        "weight_decay": 0.0,
+        "optimizer": "adamw",
+        "lr_scheduler": "cosine"
+      },
+      "weights": [
+        {
+          "seed": 42,
+          "path": "d6_runs/lrurec/07/42/best.pt",
+          "sha256": "39be4e8e2006872adcfc7d97d483d203b6b23826eb5df119558c750e7d02d2b5",
+          "run_sha256": "96ff93fa1b09caa2dff5147bc90e14eea04162c41ccc1b4db48f1abf44914f83",
+          "best_epoch": 22,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 2026,
+          "path": "d6_runs/lrurec/07/2026/best.pt",
+          "sha256": "afa691dd8c81b959b4b3464877a944a8329b81cf27e075a3013ffae1bae33d65",
+          "run_sha256": "5079e60bf1d81366088dac95c11b33825eaba020788f176a95744247125599ce",
+          "best_epoch": 21,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 3407,
+          "path": "d6_runs/lrurec/07/3407/best.pt",
+          "sha256": "fc947a36778dac97b494fadc9d93a3ab6f62c9425d4d120be7141bce25d230db",
+          "run_sha256": "b9f0ae35f1032a06bc6c3a3170d5e72eaf3758a9c4e1b40e7eeb4d879f0358d8",
+          "best_epoch": 18,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        }
+      ],
+      "finalists": {
+        "04": {
+          "ndcg_at_10_mean": 0.23464703519533284,
+          "ndcg_at_10_sd": 0.006065937966510585,
+          "recall_at_10_mean": 0.11690133730103099,
+          "recall_at_10_sd": 0.0035140591580059954,
+          "sampled_auc_mean": 0.8311504357166832,
+          "sampled_auc_sd": 0.001407869454406793,
+          "supplementary_recall_at_10_mean": 0.1118738679163073,
+          "supplementary_recall_at_10_sd": 0.0032568253387841362,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        },
+        "07": {
+          "ndcg_at_10_mean": 0.2405926925807082,
+          "ndcg_at_10_sd": 0.003746361532041955,
+          "recall_at_10_mean": 0.117172527236473,
+          "recall_at_10_sd": 0.0015318129078819732,
+          "sampled_auc_mean": 0.8345357670516114,
+          "sampled_auc_sd": 0.0008211931616881849,
+          "supplementary_recall_at_10_mean": 0.11195207607732481,
+          "supplementary_recall_at_10_sd": 0.0013346231629417055,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        }
+      }
+    },
+    "mamba4rec": {
+      "config_id": "03",
+      "config": {
+        "hidden_dim": 64,
+        "num_layers": 2,
+        "max_length": 128,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 2,
+        "dropout": 0.2,
+        "learning_rate": 0.001,
+        "weight_decay": 0.01,
+        "batch_size": 64,
+        "epochs": 100,
+        "patience": 15,
+        "seed": 42,
+        "optimizer": "adamw",
+        "lr_scheduler": "none"
+      },
+      "weights": [
+        {
+          "seed": 42,
+          "path": "d6_runs/mamba4rec/03/42/best.pt",
+          "sha256": "815c4daf55b56d4fdb6d9d2b7cd3cf708d2cd0ce254026ba3b757ddbabf6e71b",
+          "run_sha256": "7c04278ab40840e1ba2ddd65dc9c0c09e7e61a414eda1faf40750357c4c188c6",
+          "best_epoch": 10,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 2026,
+          "path": "d6_runs/mamba4rec/03/2026/best.pt",
+          "sha256": "9b71b8ca6958a8b0fd2ce1d8fdd7d9fbd80cdfb84f72de6cc290ebce7c1a0432",
+          "run_sha256": "2af5d00b47a50a03abedf312e83c1587eaf3aeb4d0b8c29666d86a8abc0ddf37",
+          "best_epoch": 13,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        },
+        {
+          "seed": 3407,
+          "path": "d6_runs/mamba4rec/03/3407/best.pt",
+          "sha256": "9aa3f4e3b656c24002f69de48fee89a738d924d0e6f2b48712ca6f6891c57ff9",
+          "run_sha256": "bb26c507d68bddfbf9fcdb3d34cc1d81fde96a17ed0758fb4dc8cfdb9054a1ca",
+          "best_epoch": 14,
+          "best_iteration": null,
+          "git_commit": "989bea5dd354246aa179f745f39fe4a03669e3aa"
+        }
+      ],
+      "finalists": {
+        "03": {
+          "ndcg_at_10_mean": 0.23147971701561915,
+          "ndcg_at_10_sd": 0.0017253065887077195,
+          "recall_at_10_mean": 0.11274134232281936,
+          "recall_at_10_sd": 0.0030722756365431135,
+          "sampled_auc_mean": 0.8331854191123351,
+          "sampled_auc_sd": 0.002199005021672877,
+          "supplementary_recall_at_10_mean": 0.10785042982351965,
+          "supplementary_recall_at_10_sd": 0.0030134925522221382,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        },
+        "05": {
+          "ndcg_at_10_mean": 0.23133294191816894,
+          "ndcg_at_10_sd": 0.0014099025813973957,
+          "recall_at_10_mean": 0.11255004396735438,
+          "recall_at_10_sd": 0.002586792985889509,
+          "sampled_auc_mean": 0.8332785759297008,
+          "sampled_auc_sd": 0.002104092212979923,
+          "supplementary_recall_at_10_mean": 0.10763489786466979,
+          "supplementary_recall_at_10_sd": 0.0025164179966540544,
+          "primary_queries": 758,
+          "supplementary_queries": 759,
+          "auc_valid_queries": 758,
+          "auc_skipped_queries": 0,
+          "auc_positive_items": 25051,
+          "auc_negative_items": 241129
+        }
+      }
+    }
+  },
+  "seeds": [
+    42,
+    2026,
+    3407
+  ],
+  "split_for_selection": "validation",
+  "history_end_exclusive": "2011-10-01",
+  "test_target": [
+    "2011-11-01",
+    "2011-12-01"
+  ],
+  "auc_sample_seed": 5481
+}
