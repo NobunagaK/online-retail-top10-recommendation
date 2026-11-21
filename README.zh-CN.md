@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。MF、LightGBM 和作者版本 LRURec 已完成 CPU 试训。两种序列适配器均调用作者固定版本的推荐模型源码。两种序列模型均已在 Colab Tesla T4 上完成小样本试训。D6 已登记 32 组配置，可在 Colab 正式调参。[研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。两种序列模型均使用作者固定版本的源码。D6 完成了 48 次正式拟合。十月验证选定 LightGBM 配置 `06`，在十一月 935 条合格查询上的 NDCG@10 为 **0.36294 ± 0.00220**（三个种子的均值 ± 样本标准差）。[验证成绩](results/validation_metrics.csv) · [锁定测试成绩](results/test_metrics.csv) · [研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 ## 运行说明
 
@@ -69,7 +69,7 @@ python -m src.models.mamba4rec_adapter --preflight --output runs/mamba4rec/prefl
 python -m scripts.train --model mamba4rec --device cuda --smoke
 ```
 
-命令行默认读取 `data/processed/d2/`，将每次结果写入 `runs/<模型>/<UTC 时间戳>/`。可用 `--data-dir`、`--output-dir` 改用其他位置。续跑时指定同一输出目录并加上 `--resume`。成功运行后可查看 `metrics.csv`、`query_metrics.csv`、`top10.parquet`、`auc_scores.parquet` 及最佳模型文件（`best.pt` 或 LightGBM 的 `best.txt`）。省略 `--smoke` 或在 notebook 中选择 `baseline` 会用完整训练数据拟合一套配置。D6 将比较预先登记的配置和种子，选定模型后再打开十一月测试标签。[训练入口](scripts/train.py) · [模型配置](configs/)
+命令行默认读取 `data/processed/d2/`，将每次结果写入 `runs/<模型>/<UTC 时间戳>/`。可用 `--data-dir`、`--output-dir` 改用其他位置。续跑时指定同一输出目录并加上 `--resume`。成功运行后可查看 `metrics.csv`、`query_metrics.csv`、`top10.parquet`、`auc_scores.parquet` 及最佳模型文件（`best.pt` 或 LightGBM 的 `best.txt`）。省略 `--smoke` 或在 notebook 中选择 `baseline` 会用完整训练数据拟合一套配置。D6 使用十月成绩选定模型，冻结后才生成十一月测试标签。[训练入口](scripts/train.py) · [模型配置](configs/)
 
 ### D6 · 调参、冻结与测试
 
@@ -79,13 +79,13 @@ python -m scripts.train --model mamba4rec --device cuda --smoke
 
 每个 D6 模型运行的 `run.json` 和汇总 `tuning.csv` 都有独立的 `optimizer`、`lr_scheduler` 字段。即使原基线 YAML 省略这两项，记录中也会写出实际生效值。
 
-以下为命令行示例。`--results-dir` 可指定同一持久目录，`scripts.tune` 和 `scripts.evaluate` 各按模型执行一次。
+仓库的 `results/` 已保存正式实验。用命令行独立复现时，给所有步骤传入同一新目录。下例列出 LRURec 的命令，实际复现时按各模型所需设备分别训练四个模型，冻结一次，再分别测试。Colab 独立复现可将 `DRIVE_FOLDER` 设为新的项目文件夹。D7 分析使用原 Drive 文件夹下的冻结预测。
 
 ```bash
-python -m scripts.tune --stage plan
-python -m scripts.tune --stage all --model lrurec --device cuda --pilots-dir experiments/model_pilots
-python -m scripts.freeze_experiment
-python -m scripts.evaluate --model lrurec --device cuda
+python -m scripts.tune --stage plan --results-dir runs/d6_reproduction
+python -m scripts.tune --stage all --model lrurec --device cuda --pilots-dir experiments/model_pilots --results-dir runs/d6_reproduction
+python -m scripts.freeze_experiment --results-dir runs/d6_reproduction
+python -m scripts.evaluate --model lrurec --device cuda --results-dir runs/d6_reproduction
 ```
 
 ### 技术文档 · 核对一张发票
@@ -124,7 +124,7 @@ python -m pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/
 
 ## 随机种子
 
-工作簿核验、发票示例、清洗审计及训练期 EDA 均使用确定性计算。D2 用 `42` 抽取共用训练负例，用 `5481` 固定验证 AUC 样本。按模型实验计划，超参数搜索使用训练种子 `42`，入选配置使用 `42`、`2026`、`3407` 复核，计算 ROC AUC 时另用种子 `5481` 抽取负例。
+工作簿核验、发票示例、清洗审计及训练期 EDA 均使用确定性计算。D2 用 `42` 抽取共用训练负例，用 `5481` 固定验证 AUC 样本。D6 超参数搜索使用训练种子 `42`，入选配置使用 `42`、`2026`、`3407` 复核，计算 ROC AUC 时另用种子 `5481` 抽取负例。
 
 ## 数据集引用
 
@@ -147,14 +147,14 @@ Chen, D. (2015). *Online Retail* [Dataset]. UCI Machine Learning Repository. DOI
 | 已本地核验 | [D2 清单](data/processed/d2/manifest.json) · [月度覆盖统计](data/processed/d2/coverage.csv) · [Parquet 表](data/processed/d2/) | 各截止点的共用输入、客户覆盖分母、可复现的训练与验证抽样。 |
 | CPU 试训记录 | [MF、LightGBM](results/model_pilots/summary.csv) | 同表保留 `69fcba3` 的旧版独立实现 LRURec，供历史对照。 |
 | 作者版本序列模型 | [运行状态与指标](results/model_pilots_upstream/summary.csv) | 按设备列出试训结果，Mamba4Rec 适配说明记录 GPU 会话位置。 |
-| D6 运行时生成 | `results/tuning.csv`、`results/validation_metrics.csv` | 前者逐次记录实际 `optimizer`、`lr_scheduler`、配置、种子、成绩和失败原因。后者列出三种子均值、样本标准差和同种子的基线差值。 |
-| 冻结与测试时生成 | `results/selection.json`、`results/test_metrics.csv` | 四模型 12 份冻结权重的校验值及全部评分完成后的十一月总表。Drive 的 `results/d6_runs/` 保存权重，`results/d6_test/` 保存标签、Top-10 和 AUC 评分。 |
+| D6 调参归档 | [预登记](results/d6_registration.json) · [48 次训练记录](results/tuning.csv) · [十月验证成绩](results/validation_metrics.csv) | 32 组初筛及 16 次追加种子复核。MF、LightGBM 使用 CPU，两种序列模型的正式基线和调优均使用 A100。 |
+| D6 冻结与测试归档 | [冻结配置](results/selection.json) · [冻结文件 SHA-256](results/selection_digest.json) · [十一月测试成绩](results/test_metrics.csv) | 四模型共 12 份权重的校验值和三种子测试总表。Drive 的 `results/d6_runs/` 保存权重，`results/d6_test/` 保存逐查询测试证据，供 D7 复算与案例分析。 |
 | 计划生成 | `results/cohort_coverage.csv`、`results/segment_metrics.csv`、`results/case_study.csv` | 客户覆盖、分组指标和个案推荐结果。 |
 | 计划生成 | `experiments/exp_XXX/diagnostics_panel.png` | 各次实验的诊断图。 |
 
 ## 技术文档与 Canvas 提交材料
 
-技术报告草稿汇总已实测的 D1、D2 结果，供后续整理 Canvas 提交稿。数据协议给出复现查询和指标的定义，研究计划说明后续模型实验及其验收标准。[技术报告草稿](docs/technical_report.zh-CN.md) · [数据协议](docs/data_protocol.zh-CN.md) · [研究计划](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
+技术报告草稿汇总 D1、D2 的数据证据，以及 D6 验证与锁定测试结果。D7 将补入分组表现和具体推荐案例。数据协议给出复现查询和指标的定义，研究计划说明后续模型实验及其验收标准。[技术报告草稿](docs/technical_report.zh-CN.md) · [数据协议](docs/data_protocol.zh-CN.md) · [研究计划](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 项目自编文档分别提供英文版和中文版。技术文档 notebook 的每个 Markdown 单元格先呈现完整的英文标题和正文，再呈现完整的中文标题和正文。两种语言共用同一份代码。[技术文档](docs/technical/transaction_records.ipynb)
 
