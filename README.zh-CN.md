@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。两种序列模型均使用作者固定版本的源码。D6 完成了 48 次正式拟合。十月验证选定 LightGBM 配置 `06`，在十一月 935 条合格查询上的 NDCG@10 为 **0.36294 ± 0.00220**（三个种子的均值 ± 样本标准差）。[验证成绩](results/validation_metrics.csv) · [锁定测试成绩](results/test_metrics.csv) · [研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
+本 CS5481 项目比较 MF、LightGBM、LRURec 和 Mamba4Rec，目标是根据客户历史为后续月份推荐十种商品。四个模型共用净有效购买的购物篮历史、候选目录和月度标签。两种序列模型均使用作者固定版本的源码。D6 完成了 48 次正式拟合。十月验证选定 LightGBM 配置 `06`，在十一月 935 条合格查询上的 NDCG@10 为 **0.36294 ± 0.00220**（三个种子的均值 ± 样本标准差）。[D6 成绩与解读](docs/technical_report.zh-CN.md#d6-调参模型选择与锁定测试) · [验证成绩](results/validation_metrics.csv) · [锁定测试成绩](results/test_metrics.csv) · [研究与代码开发计划 v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.md)
 
 ## 运行说明
 

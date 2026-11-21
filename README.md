@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. All four models share the same net-retained basket histories, candidate catalogs and monthly labels. Both sequence models use the authors’ pinned recommender code. D6 completed 48 formal fits. October validation selected LightGBM configuration `06`. On 935 eligible November queries it achieved **0.36294 ± 0.00220 NDCG@10** (three-seed mean ± sample SD). [Validation metrics](results/validation_metrics.csv) · [Locked test metrics](results/test_metrics.csv) · [Research and development plan v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
+This CS5481 project compares MF, LightGBM, LRURec, and Mamba4Rec for recommending ten products to a customer for a future month. All four models share the same net-retained basket histories, candidate catalogs and monthly labels. Both sequence models use the authors’ pinned recommender code. D6 completed 48 formal fits. October validation selected LightGBM configuration `06`. On 935 eligible November queries it achieved **0.36294 ± 0.00220 NDCG@10** (three-seed mean ± sample SD). [D6 results and interpretation](docs/technical_report.md#d6-tuning-model-selection-and-locked-test) · [Validation metrics](results/validation_metrics.csv) · [Locked test metrics](results/test_metrics.csv) · [Research and development plan v3.4](docs/CS5481_Project2_Research_Development_Plan_3.4.en.md)
 
 ## Run instructions
 
