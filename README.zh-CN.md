@@ -77,7 +77,7 @@ python -m scripts.train --model mamba4rec --device cuda --smoke
 2. 分别给四个模型选 `all`。MF、LightGBM 用 CPU，两个序列模型在 Colab 选 NVIDIA GPU。默认从 Drive 的 `experiments/model_pilots/<模型>/` 寻找既有全量 baseline，核验配置、数据、逐查询指标和权重后复用。如果要在新 GPU 上做严格配对，可在该模型首次搜索前取消勾选 `REUSE_BASELINE`，让 `01` 和 `08` 都在相同环境跑。中断后对同一模型重选 `all` 即可续跑。也可分开选 `screen` 和 `confirm`。
 3. 四模型全部完成后选一次 `freeze`，按三个种子的十月验证 NDCG@10 均值选定配置和权重。随后四个模型各选一次 `test`。十一月使用截至十月一日零时的购买历史，直接重载冻结权重评分。[选模与配对试验](docs/CS5481_Project2_Research_Development_Plan_3.4.md) · [课程题目，第 3 页](resource/Group_Project_Tutorial_Recommender_Systems.pdf#page=3)
 
-每个 D6 模型运行的 `run.json` 和汇总 `tuning.csv` 都有独立的 `optimizer`、`lr_scheduler` 字段。即使原基线 YAML 省略这两项，记录中也会写出实际生效值。
+每个 D6 模型运行的 `run.json` 和汇总 `tuning.csv` 都有独立的 `optimizer`、`lr_scheduler` 字段。即使原基线 YAML 省略这两项，记录中也会写出实际生效值。[全部 32 组配置的调参依据与成绩](docs/d6_tuning.zh-CN.md)
 
 仓库的 `results/` 已保存正式实验。用命令行独立复现时，给所有步骤传入同一新目录。下例列出 LRURec 的命令，实际复现时按各模型所需设备分别训练四个模型，冻结一次，再分别测试。Colab 独立复现可将 `DRIVE_FOLDER` 设为新的项目文件夹。D7 分析使用原 Drive 文件夹下的冻结预测。
 
